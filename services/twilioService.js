@@ -24,6 +24,11 @@ const generateSMSCode = () => {
 };
 
 const sendVerificationCode = async (phoneNumber, code) => {
+  if (process.env.NODE_ENV === 'development' || !process.env.TWILIO_ACCOUNT_SID) {
+    console.log(`🔐 DEV SMS to ${phoneNumber}: Verification code is ${code}`);
+    return { success: true, messageId: 'dev-mock-id' };
+  }
+
   const message = `Your verification code for MatchApp is: ${code}. Valid for 10 minutes.`;
   return await sendSMS(phoneNumber, message);
 };

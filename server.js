@@ -17,8 +17,10 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["*"],
+    credentials: true
   }
 });
 
@@ -27,8 +29,10 @@ connectDB();
 app.use(helmet());
 app.use(morgan('combined'));
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
-  credentials: true
+  origin: "*",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["*"]
 }));
 
 const limiter = rateLimit({
