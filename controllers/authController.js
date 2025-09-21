@@ -201,7 +201,7 @@ const verifyLogin = async (req, res) => {
 
 const registerValidation = [
   body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
-  body('phoneNumber').isMobilePhone().withMessage('Valid phone number required'),
+  body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('Valid phone number required'),
   body('gender').isIn(['male', 'female', 'other']).withMessage('Valid gender required'),
   body('address').trim().isLength({ min: 5, max: 200 }).withMessage('Address must be 5-200 characters')
 ];
@@ -212,7 +212,7 @@ const smsValidation = [
 ];
 
 const loginValidation = [
-  body('phoneNumber').isMobilePhone().withMessage('Valid phone number required')
+  body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('Valid phone number required')
 ];
 
 module.exports = {
