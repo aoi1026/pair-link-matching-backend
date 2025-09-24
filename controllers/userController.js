@@ -4,16 +4,22 @@ const User = require('../models/User');
 const getNearbyUsers = async (req, res) => {
   try {
     const errors = validationResult(req);
+
+    console.log(errors, errors.isEmpty());
+
+
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
+    const { lat, lng, radius = 100000 } = req.query;
 
-    const { lat, lng, radius = 10000 } = req.query;
     const currentUser = req.user;
+
+    console.log(`Searching for users within ${radius}m of coordinates [${lng}, ${lat}] for user ${currentUser._id}`);
 
     const nearbyUsers = await User.find({
       _id: { $ne: currentUser._id },
-      isOnline: true,
       location: {
         $near: {
           $geometry: {
@@ -24,6 +30,13 @@ const getNearbyUsers = async (req, res) => {
         }
       }
     }).select('-smsCode -smsCodeExpiry -phoneNumber');
+
+    console.log(`Found ${nearbyUsers.length} users within ${radius}m radius`);
+
+    // Log the first few users for debugging
+    nearbyUsers.slice(0, 3).forEach((user, index) => {
+      console.log(`User ${index + 1}: ${user.name} at [${user.location?.coordinates}]`);
+    });
 
     res.json({
       users: nearbyUsers,
@@ -77,9 +90,9 @@ const updateLocation = async (req, res) => {
 const getUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const user = await User.findById(id).select('-smsCode -smsCodeExpiry -phoneNumber');
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -130,7 +143,7 @@ const setOnlineStatus = async (req, res) => {
 
     const user = await User.findByIdAndUpdate(
       userId,
-      { 
+      {
         isOnline,
         lastSeen: new Date(),
         ...(isOnline ? {} : { socketId: null })
@@ -154,10 +167,26 @@ const setOnlineStatus = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select('name gender location isOnline profilePhoto bio address matchCount actualMeetCount lastSeen')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      users,
+      count: users.length
+    });
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({ error: 'Server error getting users' });
+  }
+};
+
 const nearbyUsersValidation = [
   query('lat').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude required'),
   query('lng').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude required'),
-  query('radius').optional().isInt({ min: 100, max: 50000 }).withMessage('Radius must be 100-50000 meters')
+  query('radius').optional().isInt({ min: 100, max: 200000 }).withMessage('Radius must be 100-200000 meters')
 ];
 
 const locationValidation = [
@@ -178,6 +207,7 @@ module.exports = {
   getUserProfile,
   updateProfile,
   setOnlineStatus,
+  getAllUsers,
   nearbyUsersValidation,
   locationValidation,
   profileValidation
