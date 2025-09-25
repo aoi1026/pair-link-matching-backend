@@ -216,7 +216,7 @@ const smsValidation = [
 const loginValidation = [
   body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('Valid phone number required')
 ];
-
+ ////
 module.exports = {
   register,
   verifySMS,
