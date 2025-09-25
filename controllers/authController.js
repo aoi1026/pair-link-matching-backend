@@ -9,10 +9,10 @@ const generateToken = (userId) => {
 
 const register = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    // const errors = validationResult(req);
+    // if (!errors.isEmpty()) {
+    //   return res.status(400).json({ errors: errors.array() });
+    // }
 
     const { name, phoneNumber, gender, address } = req.body;
 
@@ -114,14 +114,16 @@ const verifySMS = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
+    // const errors = validationResult(req);
+    // if (!errors.isEmpty()) {
+    //   return res.status(400).json({ errors: errors.array() });
+    // }
     const { phoneNumber } = req.body;
+    console.log(req.body);
 
     const user = await User.findOne({ phoneNumber });
+
+
     if (!user || !user.smsVerified) {
       return res.status(400).json({ error: 'User not found or not verified' });
     }
