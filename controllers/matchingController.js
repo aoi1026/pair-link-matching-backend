@@ -18,7 +18,7 @@ const calculateMidpoint = (lat1, lng1, lat2, lng2) => {
     Math.sin(lat1Rad) + Math.sin(lat2Rad),
     Math.sqrt((Math.cos(lat1Rad) + bX) * (Math.cos(lat1Rad) + bX) + bY * bY)
   );
-  
+
   const lng3 = lng1Rad + Math.atan2(bY, Math.cos(lat1Rad) + bX);
 
   return {
@@ -33,6 +33,7 @@ const sendMatchRequest = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
+    console.log(req.body);
 
     const { targetUserId, meetingReason } = req.body;
     const requesterId = req.user._id;
@@ -42,6 +43,8 @@ const sendMatchRequest = async (req, res) => {
     }
 
     const targetUser = await User.findById(targetUserId);
+    console.log(targetUser);
+
     if (!targetUser || !targetUser.isOnline) {
       return res.status(404).json({ error: 'Target user not found or offline' });
     }
@@ -52,6 +55,7 @@ const sendMatchRequest = async (req, res) => {
         { requesterId: targetUserId, targetUserId: requesterId, status: 'pending' }
       ]
     });
+    console.log(existingMatch);
 
     if (existingMatch) {
       return res.status(400).json({ error: 'Match request already exists' });
@@ -59,9 +63,9 @@ const sendMatchRequest = async (req, res) => {
 
     const requester = req.user;
     const midpoint = calculateMidpoint(
-      requester.location.coordinates[1], 
+      requester.location.coordinates[1],
       requester.location.coordinates[0],
-      targetUser.location.coordinates[1], 
+      targetUser.location.coordinates[1],
       targetUser.location.coordinates[0]
     );
 
@@ -111,7 +115,7 @@ const respondToMatch = async (req, res) => {
     const userId = req.user._id;
 
     const match = await Match.findById(matchId).populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry');
-    
+
     if (!match) {
       return res.status(404).json({ error: 'Match not found' });
     }
