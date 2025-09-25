@@ -46,7 +46,20 @@ const register = async (req, res) => {
 
     const smsResult = await sendVerificationCode(phoneNumber, smsCode);
     if (!smsResult.success) {
-      return res.status(500).json({ error: 'Failed to send verification code' });
+      console.error(`Failed to send SMS during registration:`, smsResult.error);
+      // In production, properly handle SMS failures
+      if (process.env.NODE_ENV === 'production') {
+        // Clean up the user record if SMS fails in production
+        if (!user.smsVerified) {
+          await User.findByIdAndDelete(user._id);
+        }
+        return res.status(500).json({
+          error: 'Failed to send verification code. Please check your phone number and try again.',
+          details: process.env.NODE_ENV === 'development' ? smsResult.error : undefined
+        });
+      }
+      // In development, allow registration to proceed even if SMS mock fails
+      console.log('Development mode: Proceeding despite SMS failure');
     }
 
     res.status(201).json({
@@ -56,7 +69,19 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error during registration' });
+    // Provide more specific error messages in production
+    if (process.env.NODE_ENV === 'production' && error.message) {
+      if (error.message.includes('Invalid phone number')) {
+        return res.status(400).json({ error: 'Invalid phone number format. Please use international format (e.g., +1234567890).' });
+      }
+      if (error.message.includes('SMS service not configured')) {
+        return res.status(503).json({ error: 'SMS service temporarily unavailable. Please try again later.' });
+      }
+    }
+    res.status(500).json({
+      error: 'Server error during registration',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
@@ -137,7 +162,20 @@ const login = async (req, res) => {
 
     const smsResult = await sendVerificationCode(phoneNumber, smsCode);
     if (!smsResult.success) {
-      return res.status(500).json({ error: 'Failed to send verification code' });
+      console.error(`Failed to send SMS during login:`, smsResult.error);
+      // In production, properly handle SMS failures
+      if (process.env.NODE_ENV === 'production') {
+        // Reset SMS code on failure
+        user.smsCode = undefined;
+        user.smsCodeExpiry = undefined;
+        await user.save();
+        return res.status(500).json({
+          error: 'Failed to send verification code. Please check your phone number and try again.',
+          details: process.env.NODE_ENV === 'development' ? smsResult.error : undefined
+        });
+      }
+      // In development, allow login to proceed even if SMS mock fails
+      console.log('Development mode: Proceeding despite SMS failure');
     }
 
     res.json({
@@ -147,7 +185,19 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    // Provide more specific error messages in production
+    if (process.env.NODE_ENV === 'production' && error.message) {
+      if (error.message.includes('Invalid phone number')) {
+        return res.status(400).json({ error: 'Invalid phone number format. Please use international format (e.g., +1234567890).' });
+      }
+      if (error.message.includes('SMS service not configured')) {
+        return res.status(503).json({ error: 'SMS service temporarily unavailable. Please try again later.' });
+      }
+    }
+    res.status(500).json({
+      error: 'Server error during login',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
