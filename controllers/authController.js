@@ -7,6 +7,10 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+const generateRefreshToken = (userId) => {
+  return jwt.sign({ userId, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: '30d' });
+};
+
 const register = async (req, res) => {
   try {
     // const errors = validationResult(req);
@@ -65,7 +69,9 @@ const register = async (req, res) => {
     res.status(201).json({
       message: 'Verification code sent to your phone',
       userId: user._id,
-      phoneNumber: user.phoneNumber
+      phoneNumber: user.phoneNumber,
+      isNewUser: true,
+      requiresVerification: true
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -117,10 +123,13 @@ const verifySMS = async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
     res.json({
       message: 'Phone number verified successfully',
       token,
+      refreshToken,
+      isRegistrationComplete: true,
       user: {
         id: user._id,
         name: user.name,
@@ -148,9 +157,27 @@ const login = async (req, res) => {
 
     const user = await User.findOne({ phoneNumber });
 
+    // Check if user exists at all
+    if (!user) {
+      console.log(`🚫 Login attempt for unregistered phone: ${phoneNumber}`);
+      return res.status(404).json({
+        error: 'この電話番号は登録されていません。まず新規登録を行ってください。',
+        errorCode: 'USER_NOT_REGISTERED',
+        suggestion: '新規登録ページから登録を完了してください',
+        redirectTo: 'register'
+      });
+    }
 
-    if (!user || !user.smsVerified) {
-      return res.status(400).json({ error: 'User not found or not verified' });
+    // Check if user exists but not SMS verified
+    if (!user.smsVerified) {
+      console.log(`🚫 Login attempt for unverified user: ${phoneNumber}`);
+      return res.status(400).json({
+        error: 'この電話番号は登録されていますが、SMS認証が完了していません。',
+        errorCode: 'SMS_NOT_VERIFIED',
+        suggestion: 'SMS認証を完了してからログインしてください',
+        userId: user._id,
+        redirectTo: 'verify-sms'
+      });
     }
 
     const smsCode = generateSMSCode();
@@ -181,7 +208,9 @@ const login = async (req, res) => {
     res.json({
       message: 'Verification code sent to your phone',
       userId: user._id,
-      phoneNumber: user.phoneNumber
+      phoneNumber: user.phoneNumber,
+      isNewUser: false,
+      requiresVerification: true
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -229,10 +258,13 @@ const verifyLogin = async (req, res) => {
     await user.save();
 
     const token = generateToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
     res.json({
       message: 'Login successful',
       token,
+      refreshToken,
+      isLoginComplete: true,
       user: {
         id: user._id,
         name: user.name,
@@ -266,12 +298,166 @@ const smsValidation = [
 const loginValidation = [
   body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('Valid phone number required')
 ];
+
+// Validate current session/token
+const validateSession = async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({
+        isAuthenticated: false,
+        error: 'No token provided'
+      });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.userId).select('-smsCode -smsCodeExpiry');
+
+      if (!user) {
+        return res.status(401).json({
+          isAuthenticated: false,
+          error: 'User not found'
+        });
+      }
+
+      if (!user.smsVerified) {
+        return res.status(401).json({
+          isAuthenticated: false,
+          error: 'Phone number not verified'
+        });
+      }
+
+      res.json({
+        isAuthenticated: true,
+        user: {
+          id: user._id,
+          name: user.name,
+          phoneNumber: user.phoneNumber,
+          gender: user.gender,
+          address: user.address,
+          profilePhoto: user.profilePhoto,
+          bio: user.bio,
+          matchCount: user.matchCount,
+          actualMeetCount: user.actualMeetCount,
+          isOnline: user.isOnline,
+          lastSeen: user.lastSeen
+        }
+      });
+    } catch (error) {
+      return res.status(401).json({
+        isAuthenticated: false,
+        error: 'Invalid token'
+      });
+    }
+  } catch (error) {
+    console.error('Session validation error:', error);
+    res.status(500).json({
+      isAuthenticated: false,
+      error: 'Server error during session validation'
+    });
+  }
+};
+
+// Auto-login with token
+const getCurrentUser = async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-smsCode -smsCodeExpiry');
+
+    if (!user || !user.smsVerified) {
+      return res.status(401).json({ error: 'Invalid user or not verified' });
+    }
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        phoneNumber: user.phoneNumber,
+        gender: user.gender,
+        address: user.address,
+        profilePhoto: user.profilePhoto,
+        bio: user.bio,
+        matchCount: user.matchCount,
+        actualMeetCount: user.actualMeetCount,
+        isOnline: user.isOnline,
+        location: user.location,
+        lastSeen: user.lastSeen
+      }
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
+// Refresh token endpoint
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token required' });
+    }
+
+    try {
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
+      if (decoded.type !== 'refresh') {
+        return res.status(401).json({ error: 'Invalid refresh token' });
+      }
+
+      const user = await User.findById(decoded.userId).select('-smsCode -smsCodeExpiry');
+
+      if (!user || !user.smsVerified) {
+        return res.status(401).json({ error: 'User not found or not verified' });
+      }
+
+      const newToken = generateToken(user._id);
+      const newRefreshToken = generateRefreshToken(user._id);
+
+      res.json({
+        token: newToken,
+        refreshToken: newRefreshToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          phoneNumber: user.phoneNumber,
+          gender: user.gender,
+          address: user.address,
+          profilePhoto: user.profilePhoto,
+          bio: user.bio,
+          matchCount: user.matchCount,
+          actualMeetCount: user.actualMeetCount,
+          isOnline: user.isOnline,
+          location: user.location,
+          lastSeen: user.lastSeen
+        }
+      });
+    } catch (error) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    res.status(500).json({ error: 'Server error during token refresh' });
+  }
+};
  ////
 module.exports = {
   register,
   verifySMS,
   login,
   verifyLogin,
+  validateSession,
+  getCurrentUser,
+  refreshToken,
   registerValidation,
   smsValidation,
   loginValidation

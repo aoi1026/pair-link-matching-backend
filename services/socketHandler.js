@@ -6,26 +6,42 @@ const socketHandler = (io) => {
     try {
       const token = socket.handshake.auth.token;
       if (!token) {
+        console.error('\n🔒 SOCKET AUTH ERROR 🔒');
+        console.error(`Time: ${new Date().toISOString()}`);
+        console.error(`Socket ID: ${socket.id}`);
+        console.error(`Error: No token provided`);
+        console.error(`IP: ${socket.handshake.address}\n`);
         throw new Error('No token provided');
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.userId);
-      
+
       if (!user) {
+        console.error('\n🔒 SOCKET AUTH ERROR 🔒');
+        console.error(`Time: ${new Date().toISOString()}`);
+        console.error(`Socket ID: ${socket.id}`);
+        console.error(`Error: User not found for ID: ${decoded.userId}`);
+        console.error(`IP: ${socket.handshake.address}\n`);
         throw new Error('User not found');
       }
 
       socket.userId = user._id.toString();
       socket.user = user;
+      console.log(`🔌 Socket authenticated: ${user.name} (${socket.id})`);
       next();
     } catch (error) {
+      console.error('\n🔒 SOCKET AUTH FAILED 🔒');
+      console.error(`Time: ${new Date().toISOString()}`);
+      console.error(`Socket ID: ${socket.id}`);
+      console.error(`Error: ${error.message}`);
+      console.error(`IP: ${socket.handshake.address}\n`);
       next(new Error('Authentication error'));
     }
   });
 
   io.on('connection', async (socket) => {
-    console.log(`User connected: ${socket.user.name} (${socket.userId})`);
+    console.log(`🟢 User connected: ${socket.user.name} (${socket.userId}) at ${new Date().toLocaleTimeString()}`);
 
     await User.findByIdAndUpdate(socket.userId, {
       socketId: socket.id,
@@ -67,7 +83,13 @@ const socketHandler = (io) => {
           location: updatedUser.location
         });
       } catch (error) {
-        console.error('Location update error:', error);
+        console.error('\n📍 LOCATION UPDATE ERROR 📍');
+        console.error(`Time: ${new Date().toISOString()}`);
+        console.error(`User: ${socket.user.name} (${socket.userId})`);
+        console.error(`Socket: ${socket.id}`);
+        console.error(`Error: ${error.message}`);
+        if (error.stack) console.error(`Stack: ${error.stack}`);
+        console.error('═══════════════════════════════\n');
         socket.emit('error', { message: 'Failed to update location' });
       }
     });
@@ -144,22 +166,35 @@ const socketHandler = (io) => {
     });
 
     socket.on('disconnect', async () => {
-      console.log(`User disconnected: ${socket.user.name} (${socket.userId})`);
-      
-      await User.findByIdAndUpdate(socket.userId, {
-        isOnline: false,
-        lastSeen: new Date(),
-        socketId: null
-      });
+      console.log(`🔴 User disconnected: ${socket.user.name} (${socket.userId}) at ${new Date().toLocaleTimeString()}`);
 
-      socket.broadcast.emit('userOffline', {
-        userId: socket.userId,
-        lastSeen: new Date()
-      });
+      try {
+        await User.findByIdAndUpdate(socket.userId, {
+          isOnline: false,
+          lastSeen: new Date(),
+          socketId: null
+        });
+
+        socket.broadcast.emit('userOffline', {
+          userId: socket.userId,
+          lastSeen: new Date()
+        });
+      } catch (error) {
+        console.error('\n🔴 DISCONNECT ERROR 🔴');
+        console.error(`Time: ${new Date().toISOString()}`);
+        console.error(`User: ${socket.user.name} (${socket.userId})`);
+        console.error(`Error updating offline status: ${error.message}\n`);
+      }
     });
 
     socket.on('error', (error) => {
-      console.error('Socket error:', error);
+      console.error('\n⚡ SOCKET ERROR ⚡');
+      console.error(`Time: ${new Date().toISOString()}`);
+      console.error(`Socket: ${socket.id}`);
+      console.error(`User: ${socket.user?.name || 'Unknown'} (${socket.userId || 'No ID'})`);
+      console.error(`Error: ${error.message || error}`);
+      if (error.stack) console.error(`Stack: ${error.stack}`);
+      console.error('═══════════════════\n');
     });
   });
 
