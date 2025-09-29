@@ -18,11 +18,11 @@ const register = async (req, res) => {
     //   return res.status(400).json({ errors: errors.array() });
     // }
 
-    const { name, phoneNumber, gender, address } = req.body;
+    const { name, phoneNumber, gender, address, latitude, longitude } = req.body;
 
     let user = await User.findOne({ phoneNumber });
     if (user && user.smsVerified) {
-      return res.status(400).json({ error: 'User already exists with this phone number' });
+      return res.status(400).json({ error: 'この電話番号は既に登録されています' });
     }
 
     const smsCode = generateSMSCode();
@@ -34,8 +34,15 @@ const register = async (req, res) => {
       user.address = address;
       user.smsCode = smsCode;
       user.smsCodeExpiry = smsCodeExpiry;
+      // Update location if provided
+      if (latitude && longitude) {
+        user.location = {
+          type: 'Point',
+          coordinates: [parseFloat(longitude), parseFloat(latitude)]
+        };
+      }
     } else {
-      user = new User({
+      const userData = {
         name,
         phoneNumber,
         gender,
@@ -43,7 +50,17 @@ const register = async (req, res) => {
         smsCode,
         smsCodeExpiry,
         smsVerified: false
-      });
+      };
+
+      // Add location if provided
+      if (latitude && longitude) {
+        userData.location = {
+          type: 'Point',
+          coordinates: [parseFloat(longitude), parseFloat(latitude)]
+        };
+      }
+
+      user = new User(userData);
     }
 
     await user.save();
@@ -58,16 +75,16 @@ const register = async (req, res) => {
           await User.findByIdAndDelete(user._id);
         }
         return res.status(500).json({
-          error: 'Failed to send verification code. Please check your phone number and try again.',
+          error: '認証コードの送信に失敗しました。電話番号を確認して再度お試しください。',
           details: process.env.NODE_ENV === 'development' ? smsResult.error : undefined
         });
       }
       // In development, allow registration to proceed even if SMS mock fails
-      console.log('Development mode: Proceeding despite SMS failure');
+      console.log('開発モード: SMS送信失敗でも処理を続行');
     }
 
     res.status(201).json({
-      message: 'Verification code sent to your phone',
+      message: '認証コードを送信しました',
       userId: user._id,
       phoneNumber: user.phoneNumber,
       isNewUser: true,
@@ -78,14 +95,14 @@ const register = async (req, res) => {
     // Provide more specific error messages in production
     if (process.env.NODE_ENV === 'production' && error.message) {
       if (error.message.includes('Invalid phone number')) {
-        return res.status(400).json({ error: 'Invalid phone number format. Please use international format (e.g., +1234567890).' });
+        return res.status(400).json({ error: '電話番号の形式が正しくありません。国際形式で入力してください（例：+8190XXXXXXXX）。' });
       }
       if (error.message.includes('SMS service not configured')) {
-        return res.status(503).json({ error: 'SMS service temporarily unavailable. Please try again later.' });
+        return res.status(503).json({ error: 'SMS サービスが一時的に利用できません。後でもう一度お試しください。' });
       }
     }
     res.status(500).json({
-      error: 'Server error during registration',
+      error: '登録中にサーバーエラーが発生しました',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -102,19 +119,19 @@ const verifySMS = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(400).json({ error: 'User not found' });
+      return res.status(400).json({ error: 'ユーザーが見つかりません' });
     }
 
     if (user.smsVerified) {
-      return res.status(400).json({ error: 'Phone already verified' });
+      return res.status(400).json({ error: '電話番号は既に認証済みです' });
     }
 
     if (!user.smsCode || user.smsCode !== code) {
-      return res.status(400).json({ error: 'Invalid verification code' });
+      return res.status(400).json({ error: '認証コードが正しくありません' });
     }
 
     if (new Date() > user.smsCodeExpiry) {
-      return res.status(400).json({ error: 'Verification code expired' });
+      return res.status(400).json({ error: '認証コードの有効期限が切れています' });
     }
 
     user.smsVerified = true;
@@ -126,7 +143,7 @@ const verifySMS = async (req, res) => {
     const refreshToken = generateRefreshToken(user._id);
 
     res.json({
-      message: 'Phone number verified successfully',
+      message: '電話番号の認証が完了しました',
       token,
       refreshToken,
       isRegistrationComplete: true,
@@ -137,12 +154,13 @@ const verifySMS = async (req, res) => {
         gender: user.gender,
         address: user.address,
         profilePhoto: user.profilePhoto,
-        bio: user.bio
+        bio: user.bio,
+        location: user.location
       }
     });
   } catch (error) {
     console.error('SMS verification error:', error);
-    res.status(500).json({ error: 'Server error during verification' });
+    res.status(500).json({ error: 'SMS認証中にサーバーエラーが発生しました' });
   }
 };
 
@@ -152,7 +170,7 @@ const login = async (req, res) => {
     // if (!errors.isEmpty()) {
     //   return res.status(400).json({ errors: errors.array() });
     // }
-    const { phoneNumber } = req.body;
+    const { phoneNumber, latitude, longitude } = req.body;
     console.log(req.body);
 
     const user = await User.findOne({ phoneNumber });
@@ -185,6 +203,15 @@ const login = async (req, res) => {
 
     user.smsCode = smsCode;
     user.smsCodeExpiry = smsCodeExpiry;
+
+    // Update location if provided
+    if (latitude && longitude) {
+      user.location = {
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)]
+      };
+    }
+
     await user.save();
 
     const smsResult = await sendVerificationCode(phoneNumber, smsCode);
@@ -197,16 +224,16 @@ const login = async (req, res) => {
         user.smsCodeExpiry = undefined;
         await user.save();
         return res.status(500).json({
-          error: 'Failed to send verification code. Please check your phone number and try again.',
+          error: '認証コードの送信に失敗しました。電話番号を確認して再度お試しください。',
           details: process.env.NODE_ENV === 'development' ? smsResult.error : undefined
         });
       }
       // In development, allow login to proceed even if SMS mock fails
-      console.log('Development mode: Proceeding despite SMS failure');
+      console.log('開発モード: SMS送信失敗でも処理を続行');
     }
 
     res.json({
-      message: 'Verification code sent to your phone',
+      message: '認証コードを送信しました',
       userId: user._id,
       phoneNumber: user.phoneNumber,
       isNewUser: false,
@@ -217,14 +244,14 @@ const login = async (req, res) => {
     // Provide more specific error messages in production
     if (process.env.NODE_ENV === 'production' && error.message) {
       if (error.message.includes('Invalid phone number')) {
-        return res.status(400).json({ error: 'Invalid phone number format. Please use international format (e.g., +1234567890).' });
+        return res.status(400).json({ error: '電話番号の形式が正しくありません。国際形式で入力してください（例：+8190XXXXXXXX）。' });
       }
       if (error.message.includes('SMS service not configured')) {
-        return res.status(503).json({ error: 'SMS service temporarily unavailable. Please try again later.' });
+        return res.status(503).json({ error: 'SMS サービスが一時的に利用できません。後でもう一度お試しください。' });
       }
     }
     res.status(500).json({
-      error: 'Server error during login',
+      error: 'ログイン中にサーバーエラーが発生しました',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -237,31 +264,40 @@ const verifyLogin = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { userId, code } = req.body;
+    const { userId, code, latitude, longitude } = req.body;
 
     const user = await User.findById(userId);
     if (!user || !user.smsVerified) {
-      return res.status(400).json({ error: 'User not found or not verified' });
+      return res.status(400).json({ error: 'ユーザーが見つからないか認証が完了していません' });
     }
 
     if (!user.smsCode || user.smsCode !== code) {
-      return res.status(400).json({ error: 'Invalid verification code' });
+      return res.status(400).json({ error: '認証コードが正しくありません' });
     }
 
     if (new Date() > user.smsCodeExpiry) {
-      return res.status(400).json({ error: 'Verification code expired' });
+      return res.status(400).json({ error: '認証コードの有効期限が切れています' });
     }
 
     user.smsCode = undefined;
     user.smsCodeExpiry = undefined;
     user.lastSeen = new Date();
+
+    // Update location if provided
+    if (latitude && longitude) {
+      user.location = {
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)]
+      };
+    }
+
     await user.save();
 
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
     res.json({
-      message: 'Login successful',
+      message: 'ログインが完了しました',
       token,
       refreshToken,
       isLoginComplete: true,
@@ -272,6 +308,7 @@ const verifyLogin = async (req, res) => {
         gender: user.gender,
         address: user.address,
         profilePhoto: user.profilePhoto,
+        location: user.location,
         bio: user.bio,
         matchCount: user.matchCount,
         actualMeetCount: user.actualMeetCount
@@ -279,24 +316,30 @@ const verifyLogin = async (req, res) => {
     });
   } catch (error) {
     console.error('Login verification error:', error);
-    res.status(500).json({ error: 'Server error during login verification' });
+    res.status(500).json({ error: 'ログイン認証中にサーバーエラーが発生しました' });
   }
 };
 
 const registerValidation = [
-  body('name').trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
-  body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('Valid phone number required'),
-  body('gender').isIn(['male', 'female', 'other']).withMessage('Valid gender required'),
-  body('address').trim().isLength({ min: 5, max: 200 }).withMessage('Address must be 5-200 characters')
+  body('name').trim().isLength({ min: 2, max: 50 }).withMessage('名前は2文字以上50文字以下で入力してください'),
+  body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('有効な電話番号を入力してください'),
+  body('gender').isIn(['male', 'female', 'other']).withMessage('性別を選択してください'),
+  body('address').trim().isLength({ min: 5, max: 200 }).withMessage('住所は5文字以上200文字以下で入力してください'),
+  body('latitude').optional().isFloat({ min: -90, max: 90 }).withMessage('有効な緯度を入力してください'),
+  body('longitude').optional().isFloat({ min: -180, max: 180 }).withMessage('有効な経度を入力してください')
 ];
 
 const smsValidation = [
-  body('userId').isMongoId().withMessage('Valid user ID required'),
-  body('code').isLength({ min: 6, max: 6 }).withMessage('6-digit code required')
+  body('userId').isMongoId().withMessage('有効なユーザーIDが必要です'),
+  body('code').isLength({ min: 6, max: 6 }).withMessage('6桁のコードを入力してください'),
+  body('latitude').optional().isFloat({ min: -90, max: 90 }).withMessage('有効な緯度を入力してください'),
+  body('longitude').optional().isFloat({ min: -180, max: 180 }).withMessage('有効な経度を入力してください')
 ];
 
 const loginValidation = [
-  body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('Valid phone number required')
+  body('phoneNumber').isMobilePhone('any', { strictMode: false }).withMessage('有効な電話番号を入力してください'),
+  body('latitude').optional().isFloat({ min: -90, max: 90 }).withMessage('有効な緯度を入力してください'),
+  body('longitude').optional().isFloat({ min: -180, max: 180 }).withMessage('有効な経度を入力してください')
 ];
 
 // Validate current session/token
@@ -307,7 +350,7 @@ const validateSession = async (req, res) => {
     if (!token) {
       return res.status(401).json({
         isAuthenticated: false,
-        error: 'No token provided'
+        error: 'トークンが提供されていません'
       });
     }
 
@@ -318,14 +361,14 @@ const validateSession = async (req, res) => {
       if (!user) {
         return res.status(401).json({
           isAuthenticated: false,
-          error: 'User not found'
+          error: 'ユーザーが見つかりません'
         });
       }
 
       if (!user.smsVerified) {
         return res.status(401).json({
           isAuthenticated: false,
-          error: 'Phone number not verified'
+          error: '電話番号が認証されていません'
         });
       }
 
@@ -348,14 +391,14 @@ const validateSession = async (req, res) => {
     } catch (error) {
       return res.status(401).json({
         isAuthenticated: false,
-        error: 'Invalid token'
+        error: '無効なトークンです'
       });
     }
   } catch (error) {
     console.error('Session validation error:', error);
     res.status(500).json({
       isAuthenticated: false,
-      error: 'Server error during session validation'
+      error: 'セッション認証中にサーバーエラーが発生しました'
     });
   }
 };
@@ -366,14 +409,14 @@ const getCurrentUser = async (req, res) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ error: 'Authentication required' });
+      return res.status(401).json({ error: '認証が必要です' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).select('-smsCode -smsCodeExpiry');
 
     if (!user || !user.smsVerified) {
-      return res.status(401).json({ error: 'Invalid user or not verified' });
+      return res.status(401).json({ error: '無効なユーザーまたは認証が完了していません' });
     }
 
     res.json({
@@ -394,7 +437,7 @@ const getCurrentUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Get current user error:', error);
-    res.status(401).json({ error: 'Invalid or expired token' });
+    res.status(401).json({ error: '無効または期限切れのトークンです' });
   }
 };
 
@@ -404,20 +447,20 @@ const refreshToken = async (req, res) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token required' });
+      return res.status(401).json({ error: 'リフレッシュトークンが必要です' });
     }
 
     try {
       const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
 
       if (decoded.type !== 'refresh') {
-        return res.status(401).json({ error: 'Invalid refresh token' });
+        return res.status(401).json({ error: '無効なリフレッシュトークンです' });
       }
 
       const user = await User.findById(decoded.userId).select('-smsCode -smsCodeExpiry');
 
       if (!user || !user.smsVerified) {
-        return res.status(401).json({ error: 'User not found or not verified' });
+        return res.status(401).json({ error: 'ユーザーが見つからないか認証が完了していません' });
       }
 
       const newToken = generateToken(user._id);
@@ -442,14 +485,14 @@ const refreshToken = async (req, res) => {
         }
       });
     } catch (error) {
-      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+      return res.status(401).json({ error: '無効または期限切れのリフレッシュトークンです' });
     }
   } catch (error) {
     console.error('Refresh token error:', error);
-    res.status(500).json({ error: 'Server error during token refresh' });
+    res.status(500).json({ error: 'トークン更新中にサーバーエラーが発生しました' });
   }
 };
- ////
+////
 module.exports = {
   register,
   verifySMS,
