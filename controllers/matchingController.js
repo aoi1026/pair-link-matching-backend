@@ -39,14 +39,14 @@ const sendMatchRequest = async (req, res) => {
     const requesterId = req.user._id;
 
     if (targetUserId === requesterId.toString()) {
-      return res.status(400).json({ error: 'Cannot send match request to yourself' });
+      return res.status(400).json({ error: '自分自身にマッチングリクエストを送信することはできません' });
     }
 
     const targetUser = await User.findById(targetUserId);
     console.log(targetUser);
 
     if (!targetUser || !targetUser.isOnline) {
-      return res.status(404).json({ error: 'Target user not found or offline' });
+      return res.status(404).json({ error: '対象ユーザーが見つからないかオフラインです' });
     }
 
     const existingMatch = await Match.findOne({
@@ -58,7 +58,7 @@ const sendMatchRequest = async (req, res) => {
     console.log(existingMatch);
 
     if (existingMatch) {
-      return res.status(400).json({ error: 'Match request already exists' });
+      return res.status(400).json({ error: 'マッチングリクエストは既に存在します' });
     }
 
     const requester = req.user;
@@ -95,12 +95,12 @@ const sendMatchRequest = async (req, res) => {
     });
 
     res.status(201).json({
-      message: 'Match request sent successfully',
+      message: 'マッチングリクエストを送信しました',
       match
     });
   } catch (error) {
     console.error('Send match request error:', error);
-    res.status(500).json({ error: 'Server error sending match request' });
+    res.status(500).json({ error: 'マッチングリクエストの送信中にサーバーエラーが発生しました' });
   }
 };
 
@@ -117,15 +117,15 @@ const respondToMatch = async (req, res) => {
     const match = await Match.findById(matchId).populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry');
 
     if (!match) {
-      return res.status(404).json({ error: 'Match not found' });
+      return res.status(404).json({ error: 'マッチが見つかりません' });
     }
 
     if (match.targetUserId._id.toString() !== userId.toString()) {
-      return res.status(403).json({ error: 'Not authorized to respond to this match' });
+      return res.status(403).json({ error: 'このマッチに応答する権限がありません' });
     }
 
     if (match.status !== 'pending') {
-      return res.status(400).json({ error: 'Match already responded to' });
+      return res.status(400).json({ error: 'マッチは既に応答済みです' });
     }
 
     match.status = response;
@@ -172,12 +172,12 @@ const respondToMatch = async (req, res) => {
     }
 
     res.json({
-      message: `Match ${response} successfully`,
+      message: `マッチを${response === 'accepted' ? '承認' : '拒否'}しました`,
       match
     });
   } catch (error) {
     console.error('Respond to match error:', error);
-    res.status(500).json({ error: 'Server error responding to match' });
+    res.status(500).json({ error: 'マッチの応答中にサーバーエラーが発生しました' });
   }
 };
 
@@ -213,7 +213,7 @@ const getMatchHistory = async (req, res) => {
     });
   } catch (error) {
     console.error('Get match history error:', error);
-    res.status(500).json({ error: 'Server error getting match history' });
+    res.status(500).json({ error: 'マッチ履歴の取得中にサーバーエラーが発生しました' });
   }
 };
 
@@ -231,7 +231,7 @@ const confirmMeeting = async (req, res) => {
     });
 
     if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
+      return res.status(404).json({ error: 'ミーティングが見つかりません' });
     }
 
     const match = meeting.matchId;
@@ -239,7 +239,7 @@ const confirmMeeting = async (req, res) => {
     const isTarget = match.targetUserId._id.toString() === userId.toString();
 
     if (!isRequester && !isTarget) {
-      return res.status(403).json({ error: 'Not authorized to confirm this meeting' });
+      return res.status(403).json({ error: 'このミーティングを確認する権限がありません' });
     }
 
     if (isRequester) {
@@ -273,7 +273,7 @@ const confirmMeeting = async (req, res) => {
     }
 
     res.json({
-      message: 'Meeting confirmed successfully',
+      message: 'ミーティングを確認しました',
       meeting: {
         id: meeting._id,
         bothConfirmed: meeting.bothConfirmed,
@@ -283,22 +283,22 @@ const confirmMeeting = async (req, res) => {
     });
   } catch (error) {
     console.error('Confirm meeting error:', error);
-    res.status(500).json({ error: 'Server error confirming meeting' });
+    res.status(500).json({ error: 'ミーティングの確認中にサーバーエラーが発生しました' });
   }
 };
 
 const matchRequestValidation = [
-  body('targetUserId').isMongoId().withMessage('Valid target user ID required'),
-  body('meetingReason').trim().isLength({ min: 5, max: 200 }).withMessage('Meeting reason must be 5-200 characters')
+  body('targetUserId').isMongoId().withMessage('有効な対象ユーザーIDが必要です'),
+  body('meetingReason').trim().isLength({ min: 5, max: 200 }).withMessage('ミーティングの理由は5文字以上200文字以下で入力してください')
 ];
 
 const matchResponseValidation = [
-  body('matchId').isMongoId().withMessage('Valid match ID required'),
-  body('response').isIn(['accepted', 'rejected']).withMessage('Response must be accepted or rejected')
+  body('matchId').isMongoId().withMessage('有効なマッチIDが必要です'),
+  body('response').isIn(['accepted', 'rejected']).withMessage('応答は承認または拒否である必要があります')
 ];
 
 const meetingConfirmValidation = [
-  body('meetingId').isMongoId().withMessage('Valid meeting ID required')
+  body('meetingId').isMongoId().withMessage('有効なミーティングIDが必要です')
 ];
 
 module.exports = {

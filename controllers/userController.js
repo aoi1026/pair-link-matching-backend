@@ -29,7 +29,7 @@ const getNearbyUsers = async (req, res) => {
           $maxDistance: parseInt(radius)
         }
       }
-    }).select('-smsCode -smsCodeExpiry -phoneNumber');
+    }).select('-smsCode -smsCodeExpiry');
 
     console.log(`Found ${nearbyUsers.length} users within ${radius}m radius`);
 
@@ -37,6 +37,7 @@ const getNearbyUsers = async (req, res) => {
     nearbyUsers.slice(0, 3).forEach((user, index) => {
       console.log(`User ${index + 1}: ${user.name} at [${user.location?.coordinates}]`);
     });
+    console.log('==+++===+++', nearbyUsers);
 
     res.json({
       users: nearbyUsers,
@@ -44,7 +45,7 @@ const getNearbyUsers = async (req, res) => {
     });
   } catch (error) {
     console.error('Get nearby users error:', error);
-    res.status(500).json({ error: 'Server error getting nearby users' });
+    res.status(500).json({ error: '近くのユーザーの取得中にサーバーエラーが発生しました' });
   }
 };
 
@@ -78,12 +79,12 @@ const updateLocation = async (req, res) => {
     });
 
     res.json({
-      message: 'Location updated successfully',
+      message: '位置情報を更新しました',
       location: user.location
     });
   } catch (error) {
     console.error('Update location error:', error);
-    res.status(500).json({ error: 'Server error updating location' });
+    res.status(500).json({ error: '位置情報の更新中にサーバーエラーが発生しました' });
   }
 };
 
@@ -94,13 +95,13 @@ const getUserProfile = async (req, res) => {
     const user = await User.findById(id).select('-smsCode -smsCodeExpiry -phoneNumber');
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
     }
 
     res.json({ user });
   } catch (error) {
     console.error('Get user profile error:', error);
-    res.status(500).json({ error: 'Server error getting user profile' });
+    res.status(500).json({ error: 'ユーザープロフィールの取得中にサーバーエラーが発生しました' });
   }
 };
 
@@ -127,12 +128,12 @@ const updateProfile = async (req, res) => {
     ).select('-smsCode -smsCodeExpiry');
 
     res.json({
-      message: 'Profile updated successfully',
+      message: 'プロフィールを更新しました',
       user
     });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Server error updating profile' });
+    res.status(500).json({ error: 'プロフィールの更新中にサーバーエラーが発生しました' });
   }
 };
 
@@ -158,19 +159,19 @@ const setOnlineStatus = async (req, res) => {
     });
 
     res.json({
-      message: 'Status updated successfully',
+      message: 'ステータスを更新しました',
       isOnline: user.isOnline
     });
   } catch (error) {
     console.error('Set online status error:', error);
-    res.status(500).json({ error: 'Server error updating status' });
+    res.status(500).json({ error: 'ステータスの更新中にサーバーエラーが発生しました' });
   }
 };
 
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({})
-      .select('name gender location isOnline profilePhoto bio address matchCount actualMeetCount lastSeen')
+      .select('name gender location phoneNumber isOnline profilePhoto bio address matchCount actualMeetCount lastSeen')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -179,26 +180,26 @@ const getAllUsers = async (req, res) => {
     });
   } catch (error) {
     console.error('Get all users error:', error);
-    res.status(500).json({ error: 'Server error getting users' });
+    res.status(500).json({ error: 'ユーザー一覧の取得中にサーバーエラーが発生しました' });
   }
 };
 
 const nearbyUsersValidation = [
-  query('lat').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude required'),
-  query('lng').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude required'),
-  query('radius').optional().isInt({ min: 100, max: 200000 }).withMessage('Radius must be 100-200000 meters')
+  query('lat').isFloat({ min: -90, max: 90 }).withMessage('有効な緯度が必要です'),
+  query('lng').isFloat({ min: -180, max: 180 }).withMessage('有効な経度が必要です'),
+  query('radius').optional().isInt({ min: 100, max: 200000 }).withMessage('半径は100メートルから200,000メートルの範囲で入力してください')
 ];
 
 const locationValidation = [
-  body('lat').isFloat({ min: -90, max: 90 }).withMessage('Valid latitude required'),
-  body('lng').isFloat({ min: -180, max: 180 }).withMessage('Valid longitude required')
+  body('lat').isFloat({ min: -90, max: 90 }).withMessage('有効な緯度が必要です'),
+  body('lng').isFloat({ min: -180, max: 180 }).withMessage('有効な経度が必要です')
 ];
 
 const profileValidation = [
-  body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
-  body('bio').optional().isLength({ max: 500 }).withMessage('Bio must be less than 500 characters'),
-  body('profilePhoto').optional().isURL().withMessage('Valid photo URL required'),
-  body('address').optional().trim().isLength({ min: 5, max: 200 }).withMessage('Address must be 5-200 characters')
+  body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('名前は2文字以上50文字以下で入力してください'),
+  body('bio').optional().isLength({ max: 500 }).withMessage('自己紹介は500文字以下で入力してください'),
+  body('profilePhoto').optional().isURL().withMessage('有効な写真URLを入力してください'),
+  body('address').optional().trim().isLength({ min: 5, max: 200 }).withMessage('住所は5文字以上200文字以下で入力してください')
 ];
 
 module.exports = {
