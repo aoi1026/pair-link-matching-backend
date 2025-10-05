@@ -18,7 +18,7 @@ router.get('/nearby', auth, nearbyUsersValidation, getNearbyUsers);
 router.get('/all', getAllUsers);
 router.post('/update-location', auth, locationValidation, updateLocation);
 router.get('/profile/:id', auth, getUserProfile);
-router.put('/profile', auth, profileValidation, updateProfile);
+router.put('/profile',  updateProfile);
 router.post('/status', auth, setOnlineStatus);
 
 module.exports = router;

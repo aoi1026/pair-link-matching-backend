@@ -107,13 +107,14 @@ const getUserProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    // const errors = validationResult(req);
+    // if (!errors.isEmpty()) {
+    //   return res.status(400).json({ errors: errors.array() });
+    // }
 
     const { name, bio, profilePhoto, address } = req.body;
-    const userId = req.user._id;
+    const userId = req.body.userId;
+    console.log('userId=========', userId);
 
     const updateData = {};
     if (name) updateData.name = name;
@@ -196,10 +197,10 @@ const locationValidation = [
 ];
 
 const profileValidation = [
-  body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('名前は2文字以上50文字以下で入力してください'),
-  body('bio').optional().isLength({ max: 500 }).withMessage('自己紹介は500文字以下で入力してください'),
-  body('profilePhoto').optional().isURL().withMessage('有効な写真URLを入力してください'),
-  body('address').optional().trim().isLength({ min: 5, max: 200 }).withMessage('住所は5文字以上200文字以下で入力してください')
+  body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
+  body('bio').optional().isLength({ max: 500 }).withMessage('Bio must be less than 500 characters'),
+  body('profilePhoto').optional().isURL().withMessage('Valid photo URL required'),
+  body('address').optional().trim().isLength({ min: 5, max: 200 }).withMessage('Address must be 5-200 characters')
 ];
 
 module.exports = {
