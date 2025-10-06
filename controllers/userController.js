@@ -107,13 +107,14 @@ const getUserProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    // const errors = validationResult(req);
+    // if (!errors.isEmpty()) {
+    //   return res.status(400).json({ errors: errors.array() });
+    // }
 
     const { name, bio, profilePhoto, address } = req.body;
-    const userId = req.user._id;
+    const userId = req.body.userId;
+    console.log('userId=========', userId);
 
     const updateData = {};
     if (name) updateData.name = name;
