@@ -33,18 +33,12 @@ const sendMatchRequest = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    console.log(req.body);
 
     const { targetUserId, meetingReason } = req.body;
     const requesterId = req.user._id;
-
-    if (targetUserId === requesterId.toString()) {
-      return res.status(400).json({ error: '自分自身にマッチングリクエストを送信することはできません' });
-    }
-
     const targetUser = await User.findById(targetUserId);
-    console.log(targetUser);
-
+    console.log('targetUser========',targetUser,"requestUser=======",req.user);
+    
     if (!targetUser || !targetUser.isOnline) {
       return res.status(404).json({ error: '対象ユーザーが見つからないかオフラインです' });
     }
@@ -55,7 +49,7 @@ const sendMatchRequest = async (req, res) => {
         { requesterId: targetUserId, targetUserId: requesterId, status: 'pending' }
       ]
     });
-    console.log(existingMatch);
+    console.log('existing',existingMatch);
 
     if (existingMatch) {
       return res.status(400).json({ error: 'マッチングリクエストは既に存在します' });
@@ -80,7 +74,7 @@ const sendMatchRequest = async (req, res) => {
     });
 
     await match.save();
-    await match.populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry');
+    // await match.populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry');
 
     req.app.get('io').to(targetUser.socketId).emit('newMatchRequest', {
       matchId: match._id,
