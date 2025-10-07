@@ -1,194 +1,194 @@
 const { validationResult, query, body } = require('express-validator');
-const { getUsersForMap, getUserLocation, updateUserLocation } = require('../services/mapService');
+const { マップ用ユーザー取得, ユーザー位置取得, ユーザー位置更新 } = require('../services/mapService');
 
 /**
- * Get map data with nearby users
+ * 近隣ユーザーを含むマップデータを取得する
  */
-const getMapData = async (req, res) => {
+const マップデータ取得 = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const 検証エラー = validationResult(req);
+    if (!検証エラー.isEmpty()) {
+      return res.status(400).json({ エラー一覧: 検証エラー.array() });
     }
 
-    const { lat, lng, radius = 50000 } = req.query; // Default 50km radius
-    const currentUser = req.user;
+    const { 緯度, 経度, 半径 = 50000 } = req.query; // デフォルトは半径50km
+    const 現在ユーザー = req.認証ユーザー;
 
-    console.log(`🗺️ Map data requested by ${currentUser.name}`);
+    console.log(`🗺️ ${現在ユーザー.名前} からマップデータがリクエストされました`);
 
-    const mapData = await getUsersForMap(currentUser, lat, lng, radius);
+    const マップデータ = await マップ用ユーザー取得(現在ユーザー, 緯度, 経度, 半径);
 
     res.json({
-      success: true,
-      data: mapData,
-      message: `${mapData.count}人のユーザーが見つかりました`
+      成功: true,
+      データ: マップデータ,
+      メッセージ: `${マップデータ.件数}人のユーザーが見つかりました`
     });
 
   } catch (error) {
-    console.error('Get map data error:', error);
+    console.error('マップデータ取得エラー:', error);
     res.status(500).json({
-      success: false,
-      error: 'マップデータの取得でエラーが発生しました'
+      成功: false,
+      エラー: 'マップデータの取得でエラーが発生しました'
     });
   }
 };
 
 /**
- * Get current user's location for map centering
+ * マップ中心表示用に現在ユーザーの位置を取得する
  */
-const getCurrentLocation = async (req, res) => {
+const 現在地取得 = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const ユーザーID = req.認証ユーザー._id;
 
-    console.log(`📍 Current location requested for user ${userId}`);
+    console.log(`📍 ユーザー ${ユーザーID} の現在地がリクエストされました`);
 
-    const location = await getUserLocation(userId);
+    const 位置 = await ユーザー位置取得(ユーザーID);
 
     res.json({
-      success: true,
-      location,
-      message: '現在地を取得しました'
+      成功: true,
+      位置,
+      メッセージ: '現在地を取得しました'
     });
 
   } catch (error) {
-    console.error('Get current location error:', error);
+    console.error('現在地取得エラー:', error);
     res.status(500).json({
-      success: false,
-      error: '現在地の取得でエラーが発生しました',
-      fallback: {
-        lat: 35.6762, // Tokyo coordinates as fallback
-        lng: 139.6503,
-        address: 'Tokyo, Japan'
+      成功: false,
+      エラー: '現在地の取得でエラーが発生しました',
+      フォールバック: {
+        緯度: 35.6762, // フォールバックとしての東京の座標
+        経度: 139.6503,
+        住所: '東京, 日本'
       }
     });
   }
 };
 
 /**
- * Update user location from map
+ * マップからユーザーの位置を更新する
  */
-const updateMapLocation = async (req, res) => {
+const マップ位置更新 = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const 検証エラー = validationResult(req);
+    if (!検証エラー.isEmpty()) {
+      return res.status(400).json({ エラー一覧: 検証エラー.array() });
     }
 
-    const { lat, lng, address } = req.body;
-    const userId = req.user._id;
+    const { 緯度, 経度, 住所 } = req.body;
+    const ユーザーID = req.認証ユーザー._id;
 
-    console.log(`📍 Location update from map for user ${userId}`);
+    console.log(`📍 ユーザー ${ユーザーID} のマップからの位置更新`);
 
-    const updatedLocation = await updateUserLocation(userId, lat, lng, address);
+    const 更新後位置 = await ユーザー位置更新(ユーザーID, 緯度, 経度, 住所);
 
-    // Broadcast location update to connected sockets
+    // 接続中のソケットに位置更新をブロードキャストする
     const io = req.app.get('io');
     if (io) {
-      io.emit('userLocationUpdate', {
-        userId,
-        location: {
-          lat: updatedLocation.lat,
-          lng: updatedLocation.lng
+      io.emit('ユーザー位置更新', {
+        ユーザーID,
+        位置: {
+          緯度: 更新後位置.緯度,
+          経度: 更新後位置.経度
         },
-        timestamp: new Date()
+        タイムスタンプ: new Date()
       });
     }
 
     res.json({
-      success: true,
-      location: updatedLocation,
-      message: '位置情報を更新しました'
+      成功: true,
+      位置: 更新後位置,
+      メッセージ: '位置情報を更新しました'
     });
 
   } catch (error) {
-    console.error('Update map location error:', error);
+    console.error('マップ位置更新エラー:', error);
     res.status(500).json({
-      success: false,
-      error: '位置情報の更新でエラーが発生しました'
+      成功: false,
+      エラー: '位置情報の更新でエラーが発生しました'
     });
   }
 };
 
 /**
- * Get map configuration and settings
+ * マップの構成と設定を取得する
  */
-const getMapConfig = async (req, res) => {
+const マップ設定取得 = async (req, res) => {
   try {
-    const config = {
-      defaultCenter: {
-        lat: 35.6762, // Tokyo
-        lng: 139.6503
+    const 設定 = {
+      デフォルト中心: {
+        緯度: 35.6762, // 東京
+        経度: 139.6503
       },
-      defaultZoom: 12,
-      maxRadius: 200000, // 200km max search radius
-      minRadius: 1000,   // 1km min search radius
-      markerStyles: {
+      デフォルトズーム: 12,
+      最大半径: 200000, // 最大検索半径 200km
+      最小半径: 1000,   // 最小検索半径 1km
+      マーカースタイル: {
         male: {
-          color: '#4A90E2',
-          icon: '👨',
-          size: 'medium'
+          色: '#4A90E2',
+          アイコン: '👨',
+          サイズ: 'medium'
         },
         female: {
-          color: '#E24A90',
-          icon: '👩',
-          size: 'medium'
+          色: '#E24A90',
+          アイコン: '👩',
+          サイズ: 'medium'
         },
         other: {
-          color: '#50C878',
-          icon: '🧑',
-          size: 'medium'
+          色: '#50C878',
+          アイコン: '🧑',
+          サイズ: 'medium'
         }
       },
-      mapSettings: {
-        showTraffic: false,
-        showTransit: false,
-        enableClustering: true,
-        clusterRadius: 50,
-        maxClusterRadius: 100
+      マップ設定: {
+        交通表示: false,
+        交通機関表示: false,
+        クラスタリング有効: true,
+        クラスタ半径: 50,
+        最大クラスタ半径: 100
       },
-      radiusOptions: [
-        { label: '1km', value: 1000 },
-        { label: '5km', value: 5000 },
-        { label: '10km', value: 10000 },
-        { label: '25km', value: 25000 },
-        { label: '50km', value: 50000 },
-        { label: '100km', value: 100000 }
+      半径オプション: [
+        { ラベル: '1km', 値: 1000 },
+        { ラベル: '5km', 値: 5000 },
+        { ラベル: '10km', 値: 10000 },
+        { ラベル: '25km', 値: 25000 },
+        { ラベル: '50km', 値: 50000 },
+        { ラベル: '100km', 値: 100000 }
       ]
     };
 
     res.json({
-      success: true,
-      config,
-      message: 'マップ設定を取得しました'
+      成功: true,
+      設定,
+      メッセージ: 'マップ設定を取得しました'
     });
 
   } catch (error) {
-    console.error('Get map config error:', error);
+    console.error('マップ設定取得エラー:', error);
     res.status(500).json({
-      success: false,
-      error: 'マップ設定の取得でエラーが発生しました'
+      成功: false,
+      エラー: 'マップ設定の取得でエラーが発生しました'
     });
   }
 };
 
-// Validation middleware
-const mapDataValidation = [
-  query('lat').isFloat({ min: -90, max: 90 }).withMessage('有効な緯度が必要です'),
-  query('lng').isFloat({ min: -180, max: 180 }).withMessage('有効な経度が必要です'),
-  query('radius').optional().isInt({ min: 1000, max: 200000 }).withMessage('半径は1000m〜200000mの範囲で入力してください')
+// バリデーションミドルウェア
+const マップデータ検証 = [
+  query('緯度').isFloat({ min: -90, max: 90 }).withMessage('有効な緯度が必要です'),
+  query('経度').isFloat({ min: -180, max: 180 }).withMessage('有効な経度が必要です'),
+  query('半径').optional().isInt({ min: 1000, max: 200000 }).withMessage('半径は1000m〜200000mの範囲で入力してください')
 ];
 
-const locationUpdateValidation = [
-  body('lat').isFloat({ min: -90, max: 90 }).withMessage('有効な緯度が必要です'),
-  body('lng').isFloat({ min: -180, max: 180 }).withMessage('有効な経度が必要です'),
-  body('address').optional().isString().isLength({ max: 255 }).withMessage('住所は255文字以下で入力してください')
+const 位置更新検証 = [
+  body('緯度').isFloat({ min: -90, max: 90 }).withMessage('有効な緯度が必要です'),
+  body('経度').isFloat({ min: -180, max: 180 }).withMessage('有効な経度が必要です'),
+  body('住所').optional().isString().isLength({ max: 255 }).withMessage('住所は255文字以下で入力してください')
 ];
 
 module.exports = {
-  getMapData,
-  getCurrentLocation,
-  updateMapLocation,
-  getMapConfig,
-  mapDataValidation,
-  locationUpdateValidation
+  マップデータ取得,
+  現在地取得,
+  マップ位置更新,
+  マップ設定取得,
+  マップデータ検証,
+  位置更新検証
 };

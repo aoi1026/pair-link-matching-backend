@@ -1,27 +1,27 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
-  name: {
+const ユーザースキーマ = new mongoose.Schema({
+  名前: {
     type: String,
     required: true,
     trim: true
   },
-  phoneNumber: {
+  電話番号: {
     type: String,
     required: true,
     unique: true,
     trim: true
   },
-  gender: {
+  性別: {
     type: String,
     enum: ['male', 'female', 'other'],
     required: true
   },
-  address: {
+  住所: {
     type: String,
     required: true
   },
-  location: {
+  位置: {
     type: {
       type: String,
       enum: ['Point'],
@@ -32,49 +32,50 @@ const userSchema = new mongoose.Schema({
       default: [0, 0]
     }
   },
-  profilePhoto: {
+  プロフィール写真: {
     type: String,
     default: ''
   },
-  bio: {
+  自己紹介: {
     type: String,
     default: '',
     maxlength: 500
   },
-  isOnline: {
+  オンライン状態: {
     type: Boolean,
     default: false
   },
-  matchCount: {
+  マッチ数: {
     type: Number,
     default: 0
   },
-  actualMeetCount: {
+  実会数: {
     type: Number,
     default: 0
   },
-  smsVerified: {
+  SMS認証済み: {
     type: Boolean,
     default: false
   },
-  smsCode: {
+  SMSコード: {
     type: String
   },
-  smsCodeExpiry: {
+  SMSコード有効期限: {
     type: Date
   },
-  lastSeen: {
+  最終接続: {
     type: Date,
     default: Date.now
   },
-  socketId: {
+  ソケットID: {
     type: String
   }
 }, {
   timestamps: true
 });
 
-userSchema.index({ location: '2dsphere' });
-userSchema.index({ phoneNumber: 1 });
+// 位置情報での地理空間検索用インデックス
+ユーザースキーマ.index({ 位置: '2dsphere' });
+ユーザースキーマ.index({ 電話番号: 1 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('ユーザー', ユーザースキーマ);

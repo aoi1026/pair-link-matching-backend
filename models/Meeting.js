@@ -1,45 +1,45 @@
 const mongoose = require('mongoose');
 
-const meetingSchema = new mongoose.Schema({
-  matchId: {
+const ミーティングスキーマ = new mongoose.Schema({
+  マッチID: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Match',
+    ref: 'マッチ',
     required: true
   },
-  scheduledTime: {
+  予定時刻: {
     type: Date,
     required: true
   },
-  actualMeetingTime: {
+  実会時刻: {
     type: Date
   },
-  requesterConfirmed: {
+  リクエスト者確認済み: {
     type: Boolean,
     default: false
   },
-  targetConfirmed: {
+  対象者確認済み: {
     type: Boolean,
     default: false
   },
-  bothConfirmed: {
+  両者確認済み: {
     type: Boolean,
     default: false
   },
-  requesterRating: {
+  リクエスト者評価: {
     type: Number,
     min: 1,
     max: 5
   },
-  targetRating: {
+  対象者評価: {
     type: Number,
     min: 1,
     max: 5
   },
-  meetingSuccess: {
+  会合成功: {
     type: Boolean,
     default: false
   },
-  notes: {
+  メモ: {
     type: String,
     maxlength: 1000
   }
@@ -47,6 +47,6 @@ const meetingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-meetingSchema.index({ matchId: 1 });
+ミーティングスキーマ.index({ マッチID: 1 });
 
-module.exports = mongoose.model('Meeting', meetingSchema);
+module.exports = mongoose.model('ミーティング', ミーティングスキーマ);

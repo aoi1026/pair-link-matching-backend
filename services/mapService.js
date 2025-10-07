@@ -1,213 +1,213 @@
-const User = require('../models/User');
+const ユーザー = require('../models/User');
 
 /**
- * Calculate distance between two points in meters using Haversine formula
- * @param {number} lat1 - Latitude of first point
- * @param {number} lng1 - Longitude of first point
- * @param {number} lat2 - Latitude of second point
- * @param {number} lng2 - Longitude of second point
- * @returns {number} Distance in meters
+ * ハバーサイン公式を用いて2点間の距離をメートル単位で計算する
+ * @param {number} 緯度1 - 1点目の緯度
+ * @param {number} 経度1 - 1点目の経度
+ * @param {number} 緯度2 - 2点目の緯度
+ * @param {number} 経度2 - 2点目の経度
+ * @returns {number} メートル単位の距離
  */
-const calculateDistance = (lat1, lng1, lat2, lng2) => {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng/2) * Math.sin(dLng/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
+const 距離計算 = (緯度1, 経度1, 緯度2, 経度2) => {
+  const 地球半径 = 6371000; // 地球の半径（メートル）
+  const 緯度差 = (緯度2 - 緯度1) * Math.PI / 180;
+  const 経度差 = (経度2 - 経度1) * Math.PI / 180;
+  const ハバーサイン =
+    Math.sin(緯度差/2) * Math.sin(緯度差/2) +
+    Math.cos(緯度1 * Math.PI / 180) * Math.cos(緯度2 * Math.PI / 180) *
+    Math.sin(経度差/2) * Math.sin(経度差/2);
+  const 中心角 = 2 * Math.atan2(Math.sqrt(ハバーサイン), Math.sqrt(1-ハバーサイン));
+  return 地球半径 * 中心角;
 };
 
 /**
- * Get users for map display with their locations
- * @param {Object} currentUser - The requesting user
- * @param {number} lat - Center latitude
- * @param {number} lng - Center longitude
- * @param {number} radius - Search radius in meters
- * @returns {Promise<Array>} Array of users with map data
+ * マップ表示用に位置情報付きのユーザーを取得する
+ * @param {Object} 現在ユーザー - リクエスト元のユーザー
+ * @param {number} 緯度 - 中心の緯度
+ * @param {number} 経度 - 中心の経度
+ * @param {number} 半径 - 検索半径（メートル）
+ * @returns {Promise<Array>} マップデータ付きユーザーの配列
  */
-const getUsersForMap = async (currentUser, lat, lng, radius = 100000) => {
+const マップ用ユーザー取得 = async (現在ユーザー, 緯度, 経度, 半径 = 100000) => {
   try {
-    console.log(`🗺️ Fetching map data for ${currentUser.name}`);
-    console.log(`📍 Center: [${lng}, ${lat}], Radius: ${radius}m`);
+    console.log(`🗺️ ${現在ユーザー.名前} 用のマップデータを取得中`);
+    console.log(`📍 中心: [${経度}, ${緯度}], 半径: ${半径}m`);
 
-    // Find nearby users
-    const nearbyUsers = await User.find({
-      _id: { $ne: currentUser._id },
-      location: {
+    // 近隣ユーザーを検索する
+    const 近隣ユーザー = await ユーザー.find({
+      _id: { $ne: 現在ユーザー._id },
+      位置: {
         $near: {
           $geometry: {
             type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
+            coordinates: [parseFloat(経度), parseFloat(緯度)]
           },
-          $maxDistance: parseInt(radius)
+          $maxDistance: parseInt(半径)
         }
       },
-      isOnline: true // Only show online users on map
-    }).select('name gender location profilePhoto bio isOnline lastSeen matchCount');
+      オンライン状態: true // マップにはオンラインのユーザーのみ表示する
+    }).select('名前 性別 位置 プロフィール写真 自己紹介 オンライン状態 最終接続 マッチ数');
 
-    // Enhance users with map-specific data
-    const mapUsers = nearbyUsers.map(user => {
-      const distance = calculateDistance(
-        lat, lng,
-        user.location.coordinates[1], user.location.coordinates[0]
+    // ユーザーにマップ固有のデータを付与する
+    const マップユーザー = 近隣ユーザー.map(ユーザー情報 => {
+      const 距離 = 距離計算(
+        緯度, 経度,
+        ユーザー情報.位置.coordinates[1], ユーザー情報.位置.coordinates[0]
       );
 
       return {
-        id: user._id,
-        name: user.name,
-        gender: user.gender,
-        profilePhoto: user.profilePhoto || getDefaultAvatar(user.gender),
-        bio: user.bio || 'こんにちは！',
-        location: {
-          lat: user.location.coordinates[1],
-          lng: user.location.coordinates[0]
+        ID: ユーザー情報._id,
+        名前: ユーザー情報.名前,
+        性別: ユーザー情報.性別,
+        プロフィール写真: ユーザー情報.プロフィール写真 || デフォルトアバター取得(ユーザー情報.性別),
+        自己紹介: ユーザー情報.自己紹介 || 'こんにちは！',
+        位置: {
+          緯度: ユーザー情報.位置.coordinates[1],
+          経度: ユーザー情報.位置.coordinates[0]
         },
-        distance: Math.round(distance),
-        isOnline: user.isOnline,
-        lastSeen: user.lastSeen,
-        matchCount: user.matchCount,
-        // Add map marker properties
-        marker: {
-          color: getMarkerColor(user.gender),
-          icon: getMarkerIcon(user.gender),
-          size: user.isOnline ? 'large' : 'medium'
+        距離: Math.round(距離),
+        オンライン状態: ユーザー情報.オンライン状態,
+        最終接続: ユーザー情報.最終接続,
+        マッチ数: ユーザー情報.マッチ数,
+        // マップマーカーのプロパティを追加する
+        マーカー: {
+          色: マーカー色取得(ユーザー情報.性別),
+          アイコン: マーカーアイコン取得(ユーザー情報.性別),
+          サイズ: ユーザー情報.オンライン状態 ? 'large' : 'medium'
         }
       };
     });
 
-    console.log(`📊 Found ${mapUsers.length} users for map display`);
+    console.log(`📊 マップ表示用に ${マップユーザー.length} 人のユーザーが見つかりました`);
 
     return {
-      users: mapUsers,
-      center: { lat: parseFloat(lat), lng: parseFloat(lng) },
-      radius: parseInt(radius),
-      count: mapUsers.length
+      ユーザー一覧: マップユーザー,
+      中心: { 緯度: parseFloat(緯度), 経度: parseFloat(経度) },
+      半径: parseInt(半径),
+      件数: マップユーザー.length
     };
 
   } catch (error) {
-    console.error('Map service error:', error);
+    console.error('マップサービスエラー:', error);
     throw error;
   }
 };
 
 /**
- * Get default avatar based on gender
- * @param {string} gender - User gender
- * @returns {string} Avatar URL
+ * 性別に応じたデフォルトアバターを取得する
+ * @param {string} 性別 - ユーザーの性別
+ * @returns {string} アバターURL
  */
-const getDefaultAvatar = (gender) => {
-  const avatarMap = {
+const デフォルトアバター取得 = (性別) => {
+  const アバターマップ = {
     male: 'https://randomuser.me/api/portraits/men/0.jpg',
     female: 'https://randomuser.me/api/portraits/women/0.jpg',
     other: 'https://randomuser.me/api/portraits/lego/0.jpg'
   };
-  return avatarMap[gender] || avatarMap.other;
+  return アバターマップ[性別] || アバターマップ.other;
 };
 
 /**
- * Get marker color based on gender
- * @param {string} gender - User gender
- * @returns {string} Hex color code
+ * 性別に応じたマーカー色を取得する
+ * @param {string} 性別 - ユーザーの性別
+ * @returns {string} 16進数のカラーコード
  */
-const getMarkerColor = (gender) => {
-  const colorMap = {
-    male: '#4A90E2',    // Blue
-    female: '#E24A90',  // Pink
-    other: '#50C878'    // Green
+const マーカー色取得 = (性別) => {
+  const カラーマップ = {
+    male: '#4A90E2',    // 青
+    female: '#E24A90',  // ピンク
+    other: '#50C878'    // 緑
   };
-  return colorMap[gender] || colorMap.other;
+  return カラーマップ[性別] || カラーマップ.other;
 };
 
 /**
- * Get marker icon based on gender
- * @param {string} gender - User gender
- * @returns {string} Icon identifier
+ * 性別に応じたマーカーアイコンを取得する
+ * @param {string} 性別 - ユーザーの性別
+ * @returns {string} アイコン識別子
  */
-const getMarkerIcon = (gender) => {
-  const iconMap = {
+const マーカーアイコン取得 = (性別) => {
+  const アイコンマップ = {
     male: 'male',
     female: 'female',
     other: 'person'
   };
-  return iconMap[gender] || iconMap.other;
+  return アイコンマップ[性別] || アイコンマップ.other;
 };
 
 /**
- * Get user's current location for map centering
- * @param {string} userId - User ID
- * @returns {Promise<Object>} User location
+ * マップ中心表示用にユーザーの現在地を取得する
+ * @param {string} ユーザーID - ユーザーID
+ * @returns {Promise<Object>} ユーザーの位置
  */
-const getUserLocation = async (userId) => {
+const ユーザー位置取得 = async (ユーザーID) => {
   try {
-    const user = await User.findById(userId).select('location address');
+    const 対象ユーザー = await ユーザー.findById(ユーザーID).select('位置 住所');
 
-    if (!user || !user.location || !user.location.coordinates) {
+    if (!対象ユーザー || !対象ユーザー.位置 || !対象ユーザー.位置.coordinates) {
       throw new Error('User location not found');
     }
 
     return {
-      lat: user.location.coordinates[1],
-      lng: user.location.coordinates[0],
-      address: user.address
+      緯度: 対象ユーザー.位置.coordinates[1],
+      経度: 対象ユーザー.位置.coordinates[0],
+      住所: 対象ユーザー.住所
     };
   } catch (error) {
-    console.error('Get user location error:', error);
+    console.error('ユーザー位置取得エラー:', error);
     throw error;
   }
 };
 
 /**
- * Update user location for map
- * @param {string} userId - User ID
- * @param {number} lat - Latitude
- * @param {number} lng - Longitude
- * @param {string} address - Optional address
- * @returns {Promise<Object>} Updated location
+ * マップからユーザーの位置を更新する
+ * @param {string} ユーザーID - ユーザーID
+ * @param {number} 緯度 - 緯度
+ * @param {number} 経度 - 経度
+ * @param {string} 住所 - 任意の住所
+ * @returns {Promise<Object>} 更新後の位置
  */
-const updateUserLocation = async (userId, lat, lng, address = null) => {
+const ユーザー位置更新 = async (ユーザーID, 緯度, 経度, 住所 = null) => {
   try {
-    console.log(`📍 Updating location for user ${userId}: [${lng}, ${lat}]`);
+    console.log(`📍 ユーザー ${ユーザーID} の位置を更新中: [${経度}, ${緯度}]`);
 
-    const updateData = {
-      location: {
+    const 更新データ = {
+      位置: {
         type: 'Point',
-        coordinates: [parseFloat(lng), parseFloat(lat)]
+        coordinates: [parseFloat(経度), parseFloat(緯度)]
       },
-      lastSeen: new Date()
+      最終接続: new Date()
     };
 
-    if (address) {
-      updateData.address = address;
+    if (住所) {
+      更新データ.住所 = 住所;
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      updateData,
+    const 対象ユーザー = await ユーザー.findByIdAndUpdate(
+      ユーザーID,
+      更新データ,
       { new: true }
-    ).select('location address name');
+    ).select('位置 住所 名前');
 
-    console.log(`✅ Location updated for ${user.name}`);
+    console.log(`✅ ${対象ユーザー.名前} の位置を更新しました`);
 
     return {
-      lat: user.location.coordinates[1],
-      lng: user.location.coordinates[0],
-      address: user.address
+      緯度: 対象ユーザー.位置.coordinates[1],
+      経度: 対象ユーザー.位置.coordinates[0],
+      住所: 対象ユーザー.住所
     };
   } catch (error) {
-    console.error('Update user location error:', error);
+    console.error('ユーザー位置更新エラー:', error);
     throw error;
   }
 };
 
 module.exports = {
-  getUsersForMap,
-  calculateDistance,
-  getUserLocation,
-  updateUserLocation,
-  getDefaultAvatar,
-  getMarkerColor,
-  getMarkerIcon
+  マップ用ユーザー取得,
+  距離計算,
+  ユーザー位置取得,
+  ユーザー位置更新,
+  デフォルトアバター取得,
+  マーカー色取得,
+  マーカーアイコン取得
 };

@@ -1,221 +1,221 @@
 const mongoose = require('mongoose');
-const User = require('../models/User');
+const ユーザー = require('../models/User');
 require('dotenv').config();
 
-// Tokyo area coordinates for realistic testing
-const tokyoCenter = { lat: 35.6762, lng: 139.6503 };
+// リアルなテスト用の東京エリアの座標
+const 東京中心 = { 緯度: 35.6762, 経度: 139.6503 };
 
-const mapUsers = [
+const マップユーザー一覧 = [
   {
-    name: "田中太郎",
-    phoneNumber: "+81901234567",
-    gender: "male",
-    address: "東京都渋谷区",
-    location: {
+    名前: "田中太郎",
+    電話番号: "+81901234567",
+    性別: "male",
+    住所: "東京都渋谷区",
+    位置: {
       type: 'Point',
-      coordinates: [139.6503, 35.6762] // Shibuya
+      coordinates: [139.6503, 35.6762] // 渋谷
     },
-    profilePhoto: "https://randomuser.me/api/portraits/men/1.jpg",
-    bio: "こんにちは！映画と読書が好きです。",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 3,
-    actualMeetCount: 1
+    プロフィール写真: "https://randomuser.me/api/portraits/men/1.jpg",
+    自己紹介: "こんにちは！映画と読書が好きです。",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 3,
+    実会数: 1
   },
   {
-    name: "佐藤花子",
-    phoneNumber: "+81901234568",
-    gender: "female",
-    address: "東京都新宿区",
-    location: {
+    名前: "佐藤花子",
+    電話番号: "+81901234568",
+    性別: "female",
+    住所: "東京都新宿区",
+    位置: {
       type: 'Point',
-      coordinates: [139.7036, 35.6938] // Shinjuku
+      coordinates: [139.7036, 35.6938] // 新宿
     },
-    profilePhoto: "https://randomuser.me/api/portraits/women/1.jpg",
-    bio: "カフェ巡りとヨガが趣味です♪",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 5,
-    actualMeetCount: 2
+    プロフィール写真: "https://randomuser.me/api/portraits/women/1.jpg",
+    自己紹介: "カフェ巡りとヨガが趣味です♪",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 5,
+    実会数: 2
   },
   {
-    name: "鈴木一郎",
-    phoneNumber: "+81901234569",
-    gender: "male",
-    address: "東京都港区",
-    location: {
+    名前: "鈴木一郎",
+    電話番号: "+81901234569",
+    性別: "male",
+    住所: "東京都港区",
+    位置: {
       type: 'Point',
-      coordinates: [139.7525, 35.6654] // Roppongi
+      coordinates: [139.7525, 35.6654] // 六本木
     },
-    profilePhoto: "https://randomuser.me/api/portraits/men/2.jpg",
-    bio: "IT関係の仕事をしています。よろしくお願いします！",
-    smsVerified: true,
-    isOnline: false,
-    matchCount: 2,
-    actualMeetCount: 0,
-    lastSeen: new Date(Date.now() - 1000 * 60 * 30) // 30 minutes ago
+    プロフィール写真: "https://randomuser.me/api/portraits/men/2.jpg",
+    自己紹介: "IT関係の仕事をしています。よろしくお願いします！",
+    SMS認証済み: true,
+    オンライン状態: false,
+    マッチ数: 2,
+    実会数: 0,
+    最終接続: new Date(Date.now() - 1000 * 60 * 30) // 30分前
   },
   {
-    name: "高橋美咲",
-    phoneNumber: "+81901234570",
-    gender: "female",
-    address: "東京都品川区",
-    location: {
+    名前: "高橋美咲",
+    電話番号: "+81901234570",
+    性別: "female",
+    住所: "東京都品川区",
+    位置: {
       type: 'Point',
-      coordinates: [139.7281, 35.6284] // Shinagawa
+      coordinates: [139.7281, 35.6284] // 品川
     },
-    profilePhoto: "https://randomuser.me/api/portraits/women/2.jpg",
-    bio: "料理と旅行が大好きです！",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 7,
-    actualMeetCount: 3
+    プロフィール写真: "https://randomuser.me/api/portraits/women/2.jpg",
+    自己紹介: "料理と旅行が大好きです！",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 7,
+    実会数: 3
   },
   {
-    name: "伊藤健太",
-    phoneNumber: "+81901234571",
-    gender: "male",
-    address: "東京都台東区",
-    location: {
+    名前: "伊藤健太",
+    電話番号: "+81901234571",
+    性別: "male",
+    住所: "東京都台東区",
+    位置: {
       type: 'Point',
-      coordinates: [139.7786, 35.7123] // Ueno
+      coordinates: [139.7786, 35.7123] // 上野
     },
-    profilePhoto: "https://randomuser.me/api/portraits/men/3.jpg",
-    bio: "スポーツ全般好きです。一緒に運動しませんか？",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 4,
-    actualMeetCount: 2
+    プロフィール写真: "https://randomuser.me/api/portraits/men/3.jpg",
+    自己紹介: "スポーツ全般好きです。一緒に運動しませんか？",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 4,
+    実会数: 2
   },
   {
-    name: "山田由美",
-    phoneNumber: "+81901234572",
-    gender: "female",
-    address: "東京都文京区",
-    location: {
+    名前: "山田由美",
+    電話番号: "+81901234572",
+    性別: "female",
+    住所: "東京都文京区",
+    位置: {
       type: 'Point',
-      coordinates: [139.7513, 35.7089] // Bunkyo
+      coordinates: [139.7513, 35.7089] // 文京
     },
-    profilePhoto: "https://randomuser.me/api/portraits/women/3.jpg",
-    bio: "アートと音楽が好きな会社員です。",
-    smsVerified: true,
-    isOnline: false,
-    matchCount: 6,
-    actualMeetCount: 1,
-    lastSeen: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2 hours ago
+    プロフィール写真: "https://randomuser.me/api/portraits/women/3.jpg",
+    自己紹介: "アートと音楽が好きな会社員です。",
+    SMS認証済み: true,
+    オンライン状態: false,
+    マッチ数: 6,
+    実会数: 1,
+    最終接続: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2時間前
   },
   {
-    name: "中村雄大",
-    phoneNumber: "+81901234573",
-    gender: "male",
-    address: "東京都目黒区",
-    location: {
+    名前: "中村雄大",
+    電話番号: "+81901234573",
+    性別: "male",
+    住所: "東京都目黒区",
+    位置: {
       type: 'Point',
-      coordinates: [139.6983, 35.6333] // Meguro
+      coordinates: [139.6983, 35.6333] // 目黒
     },
-    profilePhoto: "https://randomuser.me/api/portraits/men/4.jpg",
-    bio: "ゲームとアニメが趣味です！同じ趣味の人と話したいです。",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 1,
-    actualMeetCount: 0
+    プロフィール写真: "https://randomuser.me/api/portraits/men/4.jpg",
+    自己紹介: "ゲームとアニメが趣味です！同じ趣味の人と話したいです。",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 1,
+    実会数: 0
   },
   {
-    name: "小林さくら",
-    phoneNumber: "+81901234574",
-    gender: "female",
-    address: "東京都世田谷区",
-    location: {
+    名前: "小林さくら",
+    電話番号: "+81901234574",
+    性別: "female",
+    住所: "東京都世田谷区",
+    位置: {
       type: 'Point',
-      coordinates: [139.6503, 35.6464] // Setagaya
+      coordinates: [139.6503, 35.6464] // 世田谷
     },
-    profilePhoto: "https://randomuser.me/api/portraits/women/4.jpg",
-    bio: "犬と散歩するのが日課です🐕",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 8,
-    actualMeetCount: 4
+    プロフィール写真: "https://randomuser.me/api/portraits/women/4.jpg",
+    自己紹介: "犬と散歩するのが日課です🐕",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 8,
+    実会数: 4
   },
   {
-    name: "加藤翔太",
-    phoneNumber: "+81901234575",
-    gender: "male",
-    address: "東京都江戸川区",
-    location: {
+    名前: "加藤翔太",
+    電話番号: "+81901234575",
+    性別: "male",
+    住所: "東京都江戸川区",
+    位置: {
       type: 'Point',
-      coordinates: [139.8686, 35.7068] // Edogawa
+      coordinates: [139.8686, 35.7068] // 江戸川
     },
-    profilePhoto: "https://randomuser.me/api/portraits/men/5.jpg",
-    bio: "釣りとキャンプが趣味のアウトドア派です！",
-    smsVerified: true,
-    isOnline: false,
-    matchCount: 3,
-    actualMeetCount: 1,
-    lastSeen: new Date(Date.now() - 1000 * 60 * 15) // 15 minutes ago
+    プロフィール写真: "https://randomuser.me/api/portraits/men/5.jpg",
+    自己紹介: "釣りとキャンプが趣味のアウトドア派です！",
+    SMS認証済み: true,
+    オンライン状態: false,
+    マッチ数: 3,
+    実会数: 1,
+    最終接続: new Date(Date.now() - 1000 * 60 * 15) // 15分前
   },
   {
-    name: "松本あい",
-    phoneNumber: "+81901234576",
-    gender: "female",
-    address: "東京都杉並区",
-    location: {
+    名前: "松本あい",
+    電話番号: "+81901234576",
+    性別: "female",
+    住所: "東京都杉並区",
+    位置: {
       type: 'Point',
-      coordinates: [139.6365, 35.7003] // Suginami
+      coordinates: [139.6365, 35.7003] // 杉並
     },
-    profilePhoto: "https://randomuser.me/api/portraits/women/5.jpg",
-    bio: "カラオケとダンスが好きです♪",
-    smsVerified: true,
-    isOnline: true,
-    matchCount: 9,
-    actualMeetCount: 5
+    プロフィール写真: "https://randomuser.me/api/portraits/women/5.jpg",
+    自己紹介: "カラオケとダンスが好きです♪",
+    SMS認証済み: true,
+    オンライン状態: true,
+    マッチ数: 9,
+    実会数: 5
   }
 ];
 
-const seedMapUsers = async () => {
+const マップユーザー投入 = async () => {
   try {
-    console.log('🗺️ Starting map users seed...');
+    console.log('🗺️ マップユーザーのシードを開始...');
 
-    // Connect to database
+    // データベースに接続する
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/matching-app');
-    console.log('💾 Connected to database');
+    console.log('💾 データベースに接続しました');
 
-    // Clear existing map test users
-    await User.deleteMany({
-      phoneNumber: { $regex: /^\+81901234/ }
+    // 既存のマップテストユーザーを削除する
+    await ユーザー.deleteMany({
+      電話番号: { $regex: /^\+81901234/ }
     });
-    console.log('🗑️ Cleared existing map test users');
+    console.log('🗑️ 既存のマップテストユーザーを削除しました');
 
-    // Insert new map users
-    const insertedUsers = await User.insertMany(mapUsers);
-    console.log(`✅ Inserted ${insertedUsers.length} map test users`);
+    // 新しいマップユーザーを挿入する
+    const 投入ユーザー = await ユーザー.insertMany(マップユーザー一覧);
+    console.log(`✅ ${投入ユーザー.length} 件のマップテストユーザーを挿入しました`);
 
-    // Log user locations for verification
-    console.log('\n📍 User Locations:');
-    insertedUsers.forEach((user, index) => {
-      const [lng, lat] = user.location.coordinates;
-      console.log(`${index + 1}. ${user.name}: [${lng}, ${lat}] - ${user.address}`);
+    // 検証用にユーザーの位置をログ出力する
+    console.log('\n📍 ユーザーの位置:');
+    投入ユーザー.forEach((対象ユーザー, 番号) => {
+      const [経度, 緯度] = 対象ユーザー.位置.coordinates;
+      console.log(`${番号 + 1}. ${対象ユーザー.名前}: [${経度}, ${緯度}] - ${対象ユーザー.住所}`);
     });
 
-    console.log('\n🎯 Map seed completed successfully!');
-    console.log('You can now test the map functionality with these users.');
-    console.log('\nAPI Endpoints to test:');
-    console.log('- GET /api/map/config');
-    console.log('- GET /api/map/data?lat=35.6762&lng=139.6503&radius=50000');
-    console.log('- GET /api/map/location (requires auth)');
-    console.log('- POST /api/map/location (requires auth)');
+    console.log('\n🎯 マップのシードが正常に完了しました！');
+    console.log('これらのユーザーでマップ機能をテストできます。');
+    console.log('\nテスト用 API エンドポイント:');
+    console.log('- GET /api/マップ/設定');
+    console.log('- GET /api/マップ/データ?緯度=35.6762&経度=139.6503&半径=50000');
+    console.log('- GET /api/マップ/現在地 (認証が必要)');
+    console.log('- POST /api/マップ/現在地 (認証が必要)');
 
   } catch (error) {
-    console.error('❌ Map seed error:', error);
+    console.error('❌ マップシードエラー:', error);
   } finally {
     await mongoose.disconnect();
-    console.log('🔌 Disconnected from database');
+    console.log('🔌 データベースから切断しました');
     process.exit(0);
   }
 };
 
-// Run if called directly
+// 直接呼び出された場合に実行する
 if (require.main === module) {
-  seedMapUsers();
+  マップユーザー投入();
 }
 
-module.exports = { seedMapUsers, mapUsers };
+module.exports = { マップユーザー投入, マップユーザー一覧 };

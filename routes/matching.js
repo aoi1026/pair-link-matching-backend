@@ -1,20 +1,20 @@
 const express = require('express');
-const { auth } = require('../middleware/auth');
+const { 認証 } = require('../middleware/auth');
 const {
-  sendMatchRequest,
-  respondToMatch,
-  getMatchHistory,
-  confirmMeeting,
-  matchRequestValidation,
-  matchResponseValidation,
-  meetingConfirmValidation
+  マッチリクエスト送信,
+  マッチ応答,
+  マッチ履歴取得,
+  ミーティング確認,
+  マッチリクエスト検証,
+  マッチ応答検証,
+  ミーティング確認検証
 } = require('../controllers/matchingController');
 
-const router = express.Router();
+const ルーター = express.Router();
 
-router.post('/request', auth, matchRequestValidation, sendMatchRequest);
-router.post('/respond', auth, matchResponseValidation, respondToMatch);
-router.get('/history', auth, getMatchHistory);
-router.post('/confirm-meeting', auth, meetingConfirmValidation, confirmMeeting);
+ルーター.post('/リクエスト', 認証, マッチリクエスト検証, マッチリクエスト送信);
+ルーター.post('/応答', 認証, マッチ応答検証, マッチ応答);
+ルーター.get('/履歴', 認証, マッチ履歴取得);
+ルーター.post('/ミーティング確認', 認証, ミーティング確認検証, ミーティング確認);
 
-module.exports = router;
+module.exports = ルーター;

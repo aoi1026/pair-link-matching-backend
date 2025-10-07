@@ -1,7 +1,7 @@
 {
   "name": "matching-app-backend",
   "version": "1.0.0",
-  "description": "Backend API server for MatchApp - A real-time location-based matching application",
+  "description": "MatchApp のバックエンド API サーバー - リアルタイムの位置情報ベースのマッチングアプリケーション",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

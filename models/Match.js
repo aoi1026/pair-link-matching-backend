@@ -1,26 +1,26 @@
 const mongoose = require('mongoose');
 
-const matchSchema = new mongoose.Schema({
-  requesterId: {
+const マッチスキーマ = new mongoose.Schema({
+  リクエスト者ID: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'ユーザー',
     required: true
   },
-  targetUserId: {
+  対象ユーザーID: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'ユーザー',
     required: true
   },
-  status: {
+  ステータス: {
     type: String,
     enum: ['pending', 'accepted', 'rejected', 'expired'],
     default: 'pending'
   },
-  meetingReason: {
+  会う理由: {
     type: String,
     required: true
   },
-  meetingPoint: {
+  待ち合わせ地点: {
     type: {
       type: String,
       enum: ['Point'],
@@ -30,14 +30,14 @@ const matchSchema = new mongoose.Schema({
       type: [Number],
       required: true
     },
-    address: {
+    住所: {
       type: String
     },
-    placeName: {
+    場所名: {
       type: String
     }
   },
-  expiresAt: {
+  有効期限: {
     type: Date,
     default: () => new Date(Date.now() + 24 * 60 * 60 * 1000)
   }
@@ -45,7 +45,7 @@ const matchSchema = new mongoose.Schema({
   timestamps: true
 });
 
-matchSchema.index({ requesterId: 1, targetUserId: 1 });
-matchSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+マッチスキーマ.index({ リクエスト者ID: 1, 対象ユーザーID: 1 });
+マッチスキーマ.index({ 有効期限: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('Match', matchSchema);
+module.exports = mongoose.model('マッチ', マッチスキーマ);

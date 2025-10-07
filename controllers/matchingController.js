@@ -1,312 +1,306 @@
 const { body, validationResult } = require('express-validator');
-const Match = require('../models/Match');
-const Meeting = require('../models/Meeting');
-const User = require('../models/User');
+const マッチ = require('../models/Match');
+const ミーティング = require('../models/Meeting');
+const ユーザー = require('../models/User');
 
-const calculateMidpoint = (lat1, lng1, lat2, lng2) => {
-  const lat1Rad = lat1 * Math.PI / 180;
-  const lat2Rad = lat2 * Math.PI / 180;
-  const lng1Rad = lng1 * Math.PI / 180;
-  const lng2Rad = lng2 * Math.PI / 180;
+const 中間地点計算 = (緯度1, 経度1, 緯度2, 経度2) => {
+  const 緯度1ラジアン = 緯度1 * Math.PI / 180;
+  const 緯度2ラジアン = 緯度2 * Math.PI / 180;
+  const 経度1ラジアン = 経度1 * Math.PI / 180;
+  const 経度2ラジアン = 経度2 * Math.PI / 180;
 
-  const dLng = lng2Rad - lng1Rad;
+  const 経度差 = 経度2ラジアン - 経度1ラジアン;
 
-  const bX = Math.cos(lat2Rad) * Math.cos(dLng);
-  const bY = Math.cos(lat2Rad) * Math.sin(dLng);
+  const bX = Math.cos(緯度2ラジアン) * Math.cos(経度差);
+  const bY = Math.cos(緯度2ラジアン) * Math.sin(経度差);
 
-  const lat3 = Math.atan2(
-    Math.sin(lat1Rad) + Math.sin(lat2Rad),
-    Math.sqrt((Math.cos(lat1Rad) + bX) * (Math.cos(lat1Rad) + bX) + bY * bY)
+  const 中間緯度ラジアン = Math.atan2(
+    Math.sin(緯度1ラジアン) + Math.sin(緯度2ラジアン),
+    Math.sqrt((Math.cos(緯度1ラジアン) + bX) * (Math.cos(緯度1ラジアン) + bX) + bY * bY)
   );
 
-  const lng3 = lng1Rad + Math.atan2(bY, Math.cos(lat1Rad) + bX);
+  const 中間経度ラジアン = 経度1ラジアン + Math.atan2(bY, Math.cos(緯度1ラジアン) + bX);
 
   return {
-    lat: lat3 * 180 / Math.PI,
-    lng: lng3 * 180 / Math.PI
+    緯度: 中間緯度ラジアン * 180 / Math.PI,
+    経度: 中間経度ラジアン * 180 / Math.PI
   };
 };
 
-const sendMatchRequest = async (req, res) => {
+const マッチリクエスト送信 = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    console.log(req.body);
-
-    const { targetUserId, meetingReason } = req.body;
-    const requesterId = req.user._id;
-
-    if (targetUserId === requesterId.toString()) {
-      return res.status(400).json({ error: '自分自身にマッチングリクエストを送信することはできません' });
+    const 検証エラー = validationResult(req);
+    if (!検証エラー.isEmpty()) {
+      return res.status(400).json({ エラー一覧: 検証エラー.array() });
     }
 
-    const targetUser = await User.findById(targetUserId);
-    console.log(targetUser);
+    const { 対象ユーザーID, 会う理由 } = req.body;
+    const リクエスト者ID = req.認証ユーザー._id;
+    const 対象相手 = await ユーザー.findById(対象ユーザーID);
+    console.log('対象相手========', 対象相手, "リクエスト者=======", req.認証ユーザー);
 
-    if (!targetUser || !targetUser.isOnline) {
-      return res.status(404).json({ error: '対象ユーザーが見つからないかオフラインです' });
+    if (!対象相手 || !対象相手.オンライン状態) {
+      return res.status(404).json({ エラー: '対象ユーザーが見つからないかオフラインです' });
     }
 
-    const existingMatch = await Match.findOne({
+    const 既存マッチ = await マッチ.findOne({
       $or: [
-        { requesterId, targetUserId, status: 'pending' },
-        { requesterId: targetUserId, targetUserId: requesterId, status: 'pending' }
+        { リクエスト者ID, 対象ユーザーID, ステータス: 'pending' },
+        { リクエスト者ID: 対象ユーザーID, 対象ユーザーID: リクエスト者ID, ステータス: 'pending' }
       ]
     });
-    console.log(existingMatch);
+    console.log('既存', 既存マッチ);
 
-    if (existingMatch) {
-      return res.status(400).json({ error: 'マッチングリクエストは既に存在します' });
+    if (既存マッチ) {
+      return res.status(400).json({ エラー: 'マッチングリクエストは既に存在します' });
     }
 
-    const requester = req.user;
-    const midpoint = calculateMidpoint(
-      requester.location.coordinates[1],
-      requester.location.coordinates[0],
-      targetUser.location.coordinates[1],
-      targetUser.location.coordinates[0]
+    const リクエスト者 = req.認証ユーザー;
+    const 中間地点 = 中間地点計算(
+      リクエスト者.位置.coordinates[1],
+      リクエスト者.位置.coordinates[0],
+      対象相手.位置.coordinates[1],
+      対象相手.位置.coordinates[0]
     );
 
-    const match = new Match({
-      requesterId,
-      targetUserId,
-      meetingReason,
-      meetingPoint: {
+    const 対象マッチ = new マッチ({
+      リクエスト者ID,
+      対象ユーザーID,
+      会う理由,
+      待ち合わせ地点: {
         type: 'Point',
-        coordinates: [midpoint.lng, midpoint.lat]
+        coordinates: [中間地点.経度, 中間地点.緯度]
       }
     });
 
-    await match.save();
-    await match.populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry');
+    await 対象マッチ.save();
+    // await 対象マッチ.populate(['リクエスト者ID', '対象ユーザーID'], '-SMSコード -SMSコード有効期限');
 
-    req.app.get('io').to(targetUser.socketId).emit('newMatchRequest', {
-      matchId: match._id,
-      requester: {
-        id: requester._id,
-        name: requester.name,
-        profilePhoto: requester.profilePhoto,
-        bio: requester.bio
+    req.app.get('io').to(対象相手.ソケットID).emit('新規マッチリクエスト', {
+      マッチID: 対象マッチ._id,
+      リクエスト者: {
+        ID: リクエスト者._id,
+        名前: リクエスト者.名前,
+        プロフィール写真: リクエスト者.プロフィール写真,
+        自己紹介: リクエスト者.自己紹介
       },
-      meetingReason: match.meetingReason,
-      meetingPoint: match.meetingPoint
+      会う理由: 対象マッチ.会う理由,
+      待ち合わせ地点: 対象マッチ.待ち合わせ地点
     });
 
     res.status(201).json({
-      message: 'マッチングリクエストを送信しました',
-      match
+      メッセージ: 'マッチングリクエストを送信しました',
+      マッチ: 対象マッチ
     });
   } catch (error) {
-    console.error('Send match request error:', error);
-    res.status(500).json({ error: 'マッチングリクエストの送信中にサーバーエラーが発生しました' });
+    console.error('マッチリクエスト送信エラー:', error);
+    res.status(500).json({ エラー: 'マッチングリクエストの送信中にサーバーエラーが発生しました' });
   }
 };
 
-const respondToMatch = async (req, res) => {
+const マッチ応答 = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const 検証エラー = validationResult(req);
+    if (!検証エラー.isEmpty()) {
+      return res.status(400).json({ エラー一覧: 検証エラー.array() });
     }
 
-    const { matchId, response } = req.body;
-    const userId = req.user._id;
+    const { マッチID, 応答 } = req.body;
+    const ユーザーID = req.認証ユーザー._id;
 
-    const match = await Match.findById(matchId).populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry');
+    const 対象マッチ = await マッチ.findById(マッチID).populate(['リクエスト者ID', '対象ユーザーID'], '-SMSコード -SMSコード有効期限');
 
-    if (!match) {
-      return res.status(404).json({ error: 'マッチが見つかりません' });
+    if (!対象マッチ) {
+      return res.status(404).json({ エラー: 'マッチが見つかりません' });
     }
 
-    if (match.targetUserId._id.toString() !== userId.toString()) {
-      return res.status(403).json({ error: 'このマッチに応答する権限がありません' });
+    if (対象マッチ.対象ユーザーID._id.toString() !== ユーザーID.toString()) {
+      return res.status(403).json({ エラー: 'このマッチに応答する権限がありません' });
     }
 
-    if (match.status !== 'pending') {
-      return res.status(400).json({ error: 'マッチは既に応答済みです' });
+    if (対象マッチ.ステータス !== 'pending') {
+      return res.status(400).json({ エラー: 'マッチは既に応答済みです' });
     }
 
-    match.status = response;
-    await match.save();
+    対象マッチ.ステータス = 応答;
+    await 対象マッチ.save();
 
-    if (response === 'accepted') {
-      await User.findByIdAndUpdate(match.requesterId._id, { $inc: { matchCount: 1 } });
-      await User.findByIdAndUpdate(match.targetUserId._id, { $inc: { matchCount: 1 } });
+    if (応答 === 'accepted') {
+      await ユーザー.findByIdAndUpdate(対象マッチ.リクエスト者ID._id, { $inc: { マッチ数: 1 } });
+      await ユーザー.findByIdAndUpdate(対象マッチ.対象ユーザーID._id, { $inc: { マッチ数: 1 } });
 
-      const meeting = new Meeting({
-        matchId: match._id,
-        scheduledTime: new Date(Date.now() + 30 * 60 * 1000)
+      const 対象ミーティング = new ミーティング({
+        マッチID: 対象マッチ._id,
+        予定時刻: new Date(Date.now() + 30 * 60 * 1000)
       });
-      await meeting.save();
+      await 対象ミーティング.save();
 
-      req.app.get('io').to(match.requesterId.socketId).emit('matchAccepted', {
-        matchId: match._id,
-        targetUser: {
-          id: match.targetUserId._id,
-          name: match.targetUserId.name,
-          profilePhoto: match.targetUserId.profilePhoto
+      req.app.get('io').to(対象マッチ.リクエスト者ID.ソケットID).emit('マッチ承認', {
+        マッチID: 対象マッチ._id,
+        対象ユーザー: {
+          ID: 対象マッチ.対象ユーザーID._id,
+          名前: 対象マッチ.対象ユーザーID.名前,
+          プロフィール写真: 対象マッチ.対象ユーザーID.プロフィール写真
         },
-        meetingPoint: match.meetingPoint,
-        meetingId: meeting._id,
-        scheduledTime: meeting.scheduledTime
+        待ち合わせ地点: 対象マッチ.待ち合わせ地点,
+        ミーティングID: 対象ミーティング._id,
+        予定時刻: 対象ミーティング.予定時刻
       });
 
-      req.app.get('io').to(match.targetUserId.socketId).emit('matchConfirmed', {
-        matchId: match._id,
-        requester: {
-          id: match.requesterId._id,
-          name: match.requesterId.name,
-          profilePhoto: match.requesterId.profilePhoto
+      req.app.get('io').to(対象マッチ.対象ユーザーID.ソケットID).emit('マッチ確定', {
+        マッチID: 対象マッチ._id,
+        リクエスト者: {
+          ID: 対象マッチ.リクエスト者ID._id,
+          名前: 対象マッチ.リクエスト者ID.名前,
+          プロフィール写真: 対象マッチ.リクエスト者ID.プロフィール写真
         },
-        meetingPoint: match.meetingPoint,
-        meetingId: meeting._id,
-        scheduledTime: meeting.scheduledTime
+        待ち合わせ地点: 対象マッチ.待ち合わせ地点,
+        ミーティングID: 対象ミーティング._id,
+        予定時刻: 対象ミーティング.予定時刻
       });
     } else {
-      req.app.get('io').to(match.requesterId.socketId).emit('matchRejected', {
-        matchId: match._id,
-        targetUserId: match.targetUserId._id
+      req.app.get('io').to(対象マッチ.リクエスト者ID.ソケットID).emit('マッチ拒否', {
+        マッチID: 対象マッチ._id,
+        対象ユーザーID: 対象マッチ.対象ユーザーID._id
       });
     }
 
     res.json({
-      message: `マッチを${response === 'accepted' ? '承認' : '拒否'}しました`,
-      match
+      メッセージ: `マッチを${応答 === 'accepted' ? '承認' : '拒否'}しました`,
+      マッチ: 対象マッチ
     });
   } catch (error) {
-    console.error('Respond to match error:', error);
-    res.status(500).json({ error: 'マッチの応答中にサーバーエラーが発生しました' });
+    console.error('マッチ応答エラー:', error);
+    res.status(500).json({ エラー: 'マッチの応答中にサーバーエラーが発生しました' });
   }
 };
 
-const getMatchHistory = async (req, res) => {
+const マッチ履歴取得 = async (req, res) => {
   try {
-    const userId = req.user._id;
-    const { page = 1, limit = 10, status } = req.query;
+    const ユーザーID = req.認証ユーザー._id;
+    const { ページ = 1, 取得件数 = 10, ステータス } = req.query;
 
-    const filter = {
+    const 絞り込み = {
       $or: [
-        { requesterId: userId },
-        { targetUserId: userId }
+        { リクエスト者ID: ユーザーID },
+        { 対象ユーザーID: ユーザーID }
       ]
     };
 
-    if (status) {
-      filter.status = status;
+    if (ステータス) {
+      絞り込み.ステータス = ステータス;
     }
 
-    const matches = await Match.find(filter)
-      .populate(['requesterId', 'targetUserId'], '-smsCode -smsCodeExpiry')
+    const マッチ一覧 = await マッチ.find(絞り込み)
+      .populate(['リクエスト者ID', '対象ユーザーID'], '-SMSコード -SMSコード有効期限')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(取得件数 * 1)
+      .skip((ページ - 1) * 取得件数);
 
-    const total = await Match.countDocuments(filter);
+    const 合計 = await マッチ.countDocuments(絞り込み);
 
     res.json({
-      matches,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total
+      マッチ一覧,
+      総ページ数: Math.ceil(合計 / 取得件数),
+      現在ページ: ページ,
+      合計
     });
   } catch (error) {
-    console.error('Get match history error:', error);
-    res.status(500).json({ error: 'マッチ履歴の取得中にサーバーエラーが発生しました' });
+    console.error('マッチ履歴取得エラー:', error);
+    res.status(500).json({ エラー: 'マッチ履歴の取得中にサーバーエラーが発生しました' });
   }
 };
 
-const confirmMeeting = async (req, res) => {
+const ミーティング確認 = async (req, res) => {
   try {
-    const { meetingId } = req.body;
-    const userId = req.user._id;
+    const { ミーティングID } = req.body;
+    const ユーザーID = req.認証ユーザー._id;
 
-    const meeting = await Meeting.findById(meetingId).populate({
-      path: 'matchId',
+    const 対象ミーティング = await ミーティング.findById(ミーティングID).populate({
+      path: 'マッチID',
       populate: {
-        path: 'requesterId targetUserId',
-        select: '-smsCode -smsCodeExpiry'
+        path: 'リクエスト者ID 対象ユーザーID',
+        select: '-SMSコード -SMSコード有効期限'
       }
     });
 
-    if (!meeting) {
-      return res.status(404).json({ error: 'ミーティングが見つかりません' });
+    if (!対象ミーティング) {
+      return res.status(404).json({ エラー: 'ミーティングが見つかりません' });
     }
 
-    const match = meeting.matchId;
-    const isRequester = match.requesterId._id.toString() === userId.toString();
-    const isTarget = match.targetUserId._id.toString() === userId.toString();
+    const 対象マッチ = 対象ミーティング.マッチID;
+    const リクエスト者か = 対象マッチ.リクエスト者ID._id.toString() === ユーザーID.toString();
+    const 対象者か = 対象マッチ.対象ユーザーID._id.toString() === ユーザーID.toString();
 
-    if (!isRequester && !isTarget) {
-      return res.status(403).json({ error: 'このミーティングを確認する権限がありません' });
+    if (!リクエスト者か && !対象者か) {
+      return res.status(403).json({ エラー: 'このミーティングを確認する権限がありません' });
     }
 
-    if (isRequester) {
-      meeting.requesterConfirmed = true;
+    if (リクエスト者か) {
+      対象ミーティング.リクエスト者確認済み = true;
     }
-    if (isTarget) {
-      meeting.targetConfirmed = true;
-    }
-
-    meeting.bothConfirmed = meeting.requesterConfirmed && meeting.targetConfirmed;
-
-    if (meeting.bothConfirmed && !meeting.actualMeetingTime) {
-      meeting.actualMeetingTime = new Date();
-      meeting.meetingSuccess = true;
-
-      await User.findByIdAndUpdate(match.requesterId._id, { $inc: { actualMeetCount: 1 } });
-      await User.findByIdAndUpdate(match.targetUserId._id, { $inc: { actualMeetCount: 1 } });
+    if (対象者か) {
+      対象ミーティング.対象者確認済み = true;
     }
 
-    await meeting.save();
+    対象ミーティング.両者確認済み = 対象ミーティング.リクエスト者確認済み && 対象ミーティング.対象者確認済み;
 
-    const otherUserId = isRequester ? match.targetUserId._id : match.requesterId._id;
-    const otherUser = await User.findById(otherUserId);
+    if (対象ミーティング.両者確認済み && !対象ミーティング.実会時刻) {
+      対象ミーティング.実会時刻 = new Date();
+      対象ミーティング.会合成功 = true;
 
-    if (otherUser && otherUser.socketId) {
-      req.app.get('io').to(otherUser.socketId).emit('meetingConfirmed', {
-        meetingId: meeting._id,
-        confirmedBy: req.user.name,
-        bothConfirmed: meeting.bothConfirmed
+      await ユーザー.findByIdAndUpdate(対象マッチ.リクエスト者ID._id, { $inc: { 実会数: 1 } });
+      await ユーザー.findByIdAndUpdate(対象マッチ.対象ユーザーID._id, { $inc: { 実会数: 1 } });
+    }
+
+    await 対象ミーティング.save();
+
+    const 相手ユーザーID = リクエスト者か ? 対象マッチ.対象ユーザーID._id : 対象マッチ.リクエスト者ID._id;
+    const 相手ユーザー = await ユーザー.findById(相手ユーザーID);
+
+    if (相手ユーザー && 相手ユーザー.ソケットID) {
+      req.app.get('io').to(相手ユーザー.ソケットID).emit('ミーティング確認', {
+        ミーティングID: 対象ミーティング._id,
+        確認者: req.認証ユーザー.名前,
+        両者確認済み: 対象ミーティング.両者確認済み
       });
     }
 
     res.json({
-      message: 'ミーティングを確認しました',
-      meeting: {
-        id: meeting._id,
-        bothConfirmed: meeting.bothConfirmed,
-        actualMeetingTime: meeting.actualMeetingTime,
-        meetingSuccess: meeting.meetingSuccess
+      メッセージ: 'ミーティングを確認しました',
+      ミーティング: {
+        ID: 対象ミーティング._id,
+        両者確認済み: 対象ミーティング.両者確認済み,
+        実会時刻: 対象ミーティング.実会時刻,
+        会合成功: 対象ミーティング.会合成功
       }
     });
   } catch (error) {
-    console.error('Confirm meeting error:', error);
-    res.status(500).json({ error: 'ミーティングの確認中にサーバーエラーが発生しました' });
+    console.error('ミーティング確認エラー:', error);
+    res.status(500).json({ エラー: 'ミーティングの確認中にサーバーエラーが発生しました' });
   }
 };
 
-const matchRequestValidation = [
-  body('targetUserId').isMongoId().withMessage('有効な対象ユーザーIDが必要です'),
-  body('meetingReason').trim().isLength({ min: 5, max: 200 }).withMessage('ミーティングの理由は5文字以上200文字以下で入力してください')
+const マッチリクエスト検証 = [
+  body('対象ユーザーID').isMongoId().withMessage('有効な対象ユーザーIDが必要です'),
+  body('会う理由').trim().isLength({ min: 5, max: 200 }).withMessage('ミーティングの理由は5文字以上200文字以下で入力してください')
 ];
 
-const matchResponseValidation = [
-  body('matchId').isMongoId().withMessage('有効なマッチIDが必要です'),
-  body('response').isIn(['accepted', 'rejected']).withMessage('応答は承認または拒否である必要があります')
+const マッチ応答検証 = [
+  body('マッチID').isMongoId().withMessage('有効なマッチIDが必要です'),
+  body('応答').isIn(['accepted', 'rejected']).withMessage('応答は承認または拒否である必要があります')
 ];
 
-const meetingConfirmValidation = [
-  body('meetingId').isMongoId().withMessage('有効なミーティングIDが必要です')
+const ミーティング確認検証 = [
+  body('ミーティングID').isMongoId().withMessage('有効なミーティングIDが必要です')
 ];
 
 module.exports = {
-  sendMatchRequest,
-  respondToMatch,
-  getMatchHistory,
-  confirmMeeting,
-  matchRequestValidation,
-  matchResponseValidation,
-  meetingConfirmValidation
+  マッチリクエスト送信,
+  マッチ応答,
+  マッチ履歴取得,
+  ミーティング確認,
+  マッチリクエスト検証,
+  マッチ応答検証,
+  ミーティング確認検証
 };

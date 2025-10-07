@@ -1,167 +1,167 @@
 const mongoose = require('mongoose');
-const User = require('../models/User');
+const ユーザー = require('../models/User');
 require('dotenv').config();
 
-// Connect to MongoDB
-const connectDB = async () => {
+// MongoDB に接続する
+const DB接続 = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/matching-app', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log('MongoDB Connected for seeding');
+    console.log('シード用に MongoDB へ接続しました');
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('MongoDB 接続エラー:', error);
     process.exit(1);
   }
 };
 
-// Function to generate random coordinates within a radius
-const generateRandomLocation = (centerLat, centerLng, radiusKm) => {
-  // Convert radius from kilometers to degrees
-  const radiusInDegrees = radiusKm / 111.32;
+// 指定半径内のランダムな座標を生成する関数
+const ランダム位置生成 = (中心緯度, 中心経度, 半径km) => {
+  // 半径をキロメートルから度に変換する
+  const 半径度 = 半径km / 111.32;
 
-  // Generate random angle and distance
+  // ランダムな角度と距離を生成する
   const u = Math.random();
   const v = Math.random();
-  const w = radiusInDegrees * Math.sqrt(u);
+  const w = 半径度 * Math.sqrt(u);
   const t = 2 * Math.PI * v;
 
-  // Calculate offset
+  // オフセットを計算する
   const x = w * Math.cos(t);
   const y = w * Math.sin(t);
 
-  // Adjust for latitude scaling
-  const newLat = centerLat + y;
-  const newLng = centerLng + (x / Math.cos(centerLat * Math.PI / 180));
+  // 緯度のスケーリングを調整する
+  const 新緯度 = 中心緯度 + y;
+  const 新経度 = 中心経度 + (x / Math.cos(中心緯度 * Math.PI / 180));
 
   return {
-    lat: newLat,
-    lng: newLng
+    緯度: 新緯度,
+    経度: 新経度
   };
 };
 
-// Test users data
-const createTestUsers = (centerLat, centerLng) => {
-  const testUsers = [
+// テストユーザーのデータ
+const テストユーザー作成 = (中心緯度, 中心経度) => {
+  const テストユーザー一覧 = [
     {
-      name: 'Emma Johnson',
-      phoneNumber: '+1234567891',
-      gender: 'female',
-      address: '123 Park Street, Downtown',
-      bio: 'Love hiking and outdoor adventures. Looking for someone to explore the city with!',
-      profilePhoto: 'https://randomuser.me/api/portraits/women/1.jpg',
-      isOnline: true,
-      matchCount: 15,
-      actualMeetCount: 3,
-      smsVerified: true
+      名前: 'Emma Johnson',
+      電話番号: '+1234567891',
+      性別: 'female',
+      住所: '123 Park Street, Downtown',
+      自己紹介: 'Love hiking and outdoor adventures. Looking for someone to explore the city with!',
+      プロフィール写真: 'https://randomuser.me/api/portraits/women/1.jpg',
+      オンライン状態: true,
+      マッチ数: 15,
+      実会数: 3,
+      SMS認証済み: true
     },
     {
-      name: 'Michael Chen',
-      phoneNumber: '+1234567892',
-      gender: 'male',
-      address: '456 Main Avenue, Riverside',
-      bio: 'Coffee enthusiast and bookworm. Let\'s grab a latte and discuss our favorite novels!',
-      profilePhoto: 'https://randomuser.me/api/portraits/men/2.jpg',
-      isOnline: true,
-      matchCount: 8,
-      actualMeetCount: 2,
-      smsVerified: true
+      名前: 'Michael Chen',
+      電話番号: '+1234567892',
+      性別: 'male',
+      住所: '456 Main Avenue, Riverside',
+      自己紹介: 'Coffee enthusiast and bookworm. Let\'s grab a latte and discuss our favorite novels!',
+      プロフィール写真: 'https://randomuser.me/api/portraits/men/2.jpg',
+      オンライン状態: true,
+      マッチ数: 8,
+      実会数: 2,
+      SMS認証済み: true
     },
     {
-      name: 'Sophie Martinez',
-      phoneNumber: '+1234567893',
-      gender: 'female',
-      address: '789 Oak Boulevard, Westside',
-      bio: 'Yoga instructor and foodie. Always up for trying new restaurants!',
-      profilePhoto: 'https://randomuser.me/api/portraits/women/3.jpg',
-      isOnline: false,
-      matchCount: 22,
-      actualMeetCount: 5,
-      smsVerified: true,
-      lastSeen: new Date(Date.now() - 3600000) // 1 hour ago
+      名前: 'Sophie Martinez',
+      電話番号: '+1234567893',
+      性別: 'female',
+      住所: '789 Oak Boulevard, Westside',
+      自己紹介: 'Yoga instructor and foodie. Always up for trying new restaurants!',
+      プロフィール写真: 'https://randomuser.me/api/portraits/women/3.jpg',
+      オンライン状態: false,
+      マッチ数: 22,
+      実会数: 5,
+      SMS認証済み: true,
+      最終接続: new Date(Date.now() - 3600000) // 1時間前
     },
     {
-      name: 'David Wilson',
-      phoneNumber: '+1234567894',
-      gender: 'male',
-      address: '321 Elm Street, North District',
-      bio: 'Musician and artist. Looking for someone who appreciates creativity and good music.',
-      profilePhoto: 'https://randomuser.me/api/portraits/men/4.jpg',
-      isOnline: true,
-      matchCount: 12,
-      actualMeetCount: 4,
-      smsVerified: true
+      名前: 'David Wilson',
+      電話番号: '+1234567894',
+      性別: 'male',
+      住所: '321 Elm Street, North District',
+      自己紹介: 'Musician and artist. Looking for someone who appreciates creativity and good music.',
+      プロフィール写真: 'https://randomuser.me/api/portraits/men/4.jpg',
+      オンライン状態: true,
+      マッチ数: 12,
+      実会数: 4,
+      SMS認証済み: true
     },
     {
-      name: 'Olivia Thompson',
-      phoneNumber: '+1234567895',
-      gender: 'female',
-      address: '654 Pine Road, East End',
-      bio: 'Travel blogger and photographer. Let\'s capture some memories together!',
-      profilePhoto: 'https://randomuser.me/api/portraits/women/5.jpg',
-      isOnline: false,
-      matchCount: 30,
-      actualMeetCount: 7,
-      smsVerified: true,
-      lastSeen: new Date(Date.now() - 7200000) // 2 hours ago
+      名前: 'Olivia Thompson',
+      電話番号: '+1234567895',
+      性別: 'female',
+      住所: '654 Pine Road, East End',
+      自己紹介: 'Travel blogger and photographer. Let\'s capture some memories together!',
+      プロフィール写真: 'https://randomuser.me/api/portraits/women/5.jpg',
+      オンライン状態: false,
+      マッチ数: 30,
+      実会数: 7,
+      SMS認証済み: true,
+      最終接続: new Date(Date.now() - 7200000) // 2時間前
     }
   ];
 
-  // Add random locations within 10km radius
-  return testUsers.map(user => {
-    const location = generateRandomLocation(centerLat, centerLng, 8); // Within 8km
+  // 半径10km以内にランダムな位置を付与する
+  return テストユーザー一覧.map(ユーザー情報 => {
+    const 位置 = ランダム位置生成(中心緯度, 中心経度, 8); // 8km以内
     return {
-      ...user,
-      location: {
+      ...ユーザー情報,
+      位置: {
         type: 'Point',
-        coordinates: [location.lng, location.lat]
+        coordinates: [位置.経度, 位置.緯度]
       }
     };
   });
 };
 
-const seedUsers = async () => {
+const ユーザー投入 = async () => {
   try {
-    await connectDB();
+    await DB接続();
 
-    // Default center location (you can change this to your actual location)
-    // Using a sample location - Update these coordinates to your actual location
-    const centerLat = 40.7128; // Example: New York City latitude
-    const centerLng = -74.0060; // Example: New York City longitude
+    // デフォルトの中心位置（実際の位置に変更できます）
+    // サンプルの位置を使用 - 実際の位置に座標を更新してください
+    const 中心緯度 = 40.7128; // 例: ニューヨーク市の緯度
+    const 中心経度 = -74.0060; // 例: ニューヨーク市の経度
 
-    console.log(`Creating test users around location: ${centerLat}, ${centerLng}`);
+    console.log(`位置 ${中心緯度}, ${中心経度} 周辺にテストユーザーを作成中`);
 
-    // Clear existing test users
-    await User.deleteMany({
-      phoneNumber: { $in: ['+1234567891', '+1234567892', '+1234567893', '+1234567894', '+1234567895'] }
+    // 既存のテストユーザーを削除する
+    await ユーザー.deleteMany({
+      電話番号: { $in: ['+1234567891', '+1234567892', '+1234567893', '+1234567894', '+1234567895'] }
     });
-    console.log('Cleared existing test users');
+    console.log('既存のテストユーザーを削除しました');
 
-    // Create new test users
-    const testUsers = createTestUsers(centerLat, centerLng);
+    // 新しいテストユーザーを作成する
+    const テストユーザー一覧 = テストユーザー作成(中心緯度, 中心経度);
 
-    for (const testUser of testUsers) {
-      const user = new User(testUser);
-      await user.save();
-      console.log(`Created user: ${user.name} at ${user.location.coordinates}`);
+    for (const テストユーザー of テストユーザー一覧) {
+      const 対象ユーザー = new ユーザー(テストユーザー);
+      await 対象ユーザー.save();
+      console.log(`ユーザーを作成しました: ${対象ユーザー.名前} 位置 ${対象ユーザー.位置.coordinates}`);
     }
 
-    console.log('Test users created successfully!');
+    console.log('テストユーザーの作成に成功しました！');
 
-    // Display all users
-    const allUsers = await User.find({}).select('name location isOnline');
-    console.log('\nAll users in database:');
-    allUsers.forEach(user => {
-      console.log(`- ${user.name}: ${user.location.coordinates} (${user.isOnline ? 'Online' : 'Offline'})`);
+    // 全ユーザーを表示する
+    const 全ユーザー = await ユーザー.find({}).select('名前 位置 オンライン状態');
+    console.log('\nデータベース内の全ユーザー:');
+    全ユーザー.forEach(対象ユーザー => {
+      console.log(`- ${対象ユーザー.名前}: ${対象ユーザー.位置.coordinates} (${対象ユーザー.オンライン状態 ? 'オンライン' : 'オフライン'})`);
     });
 
     process.exit(0);
   } catch (error) {
-    console.error('Error seeding users:', error);
+    console.error('ユーザーのシード中にエラーが発生しました:', error);
     process.exit(1);
   }
 };
 
-// Run the seed function
-seedUsers();
+// シード関数を実行する
+ユーザー投入();
