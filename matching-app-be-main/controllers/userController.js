@@ -37,6 +37,8 @@ const getNearbyUsers = async (req, res) => {
     nearbyUsers.slice(0, 3).forEach((user, index) => {
       console.log(`User ${index + 1}: ${user.name} at [${user.location?.coordinates}]`);
     });
+    console.log('==+++===+++', nearbyUsers);
+
     res.json({
       users: nearbyUsers,
       count: nearbyUsers.length
@@ -109,7 +111,7 @@ const updateProfile = async (req, res) => {
     // if (!errors.isEmpty()) {
     //   return res.status(400).json({ errors: errors.array() });
     // }
-    
+
     const { name, bio, profilePhoto, address } = req.body;
     const userId = req.body.userId;
     console.log('userId=========', userId);
